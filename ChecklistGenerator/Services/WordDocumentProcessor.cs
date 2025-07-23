@@ -108,6 +108,10 @@ namespace ChecklistGenerator.Services
                     if (string.IsNullOrWhiteSpace(text))
                         continue;
 
+                    // Skip cover page content
+                    if (IsCoverPageContent(text))
+                        continue;
+
                     // Check if this line starts with lowercase and should be consolidated with previous item
                     if (ShouldConsolidateWithPrevious(text) && checklistItems.Count > 0)
                     {
@@ -124,15 +128,36 @@ namespace ChecklistGenerator.Services
                     }
                 }
 
-                // Process tables
+                // Process tables - handle 4-column format
                 foreach (var table in doc.Tables)
                 {
                     foreach (var row in table.Rows)
                     {
-                        if (row.GetTableCells().Count >= 2)
+                        var cells = row.GetTableCells();
+                        
+                        // Handle 4-column format: [Question Number] [Text] [Clause Number/Box] [Empty Box]
+                        if (cells.Count >= 4)
                         {
-                            var leftColumnText = row.GetTableCells()[0].GetText().Trim();
-                            var rightColumnText = row.GetTableCells()[1].GetText().Trim();
+                            var questionNumberText = cells[0].GetText().Trim();
+                            var questionText = cells[1].GetText().Trim();
+
+                            // Skip header rows or empty rows
+                            if (string.IsNullOrWhiteSpace(questionText) || 
+                                questionText.Length < 3 ||
+                                IsHeaderRow(questionNumberText, questionText) ||
+                                IsCoverPageContent(questionText) ||
+                                IsCoverPageContent(questionNumberText))
+                                continue;
+
+                            // Parse the question number and any sub-questions
+                            var questionItems = ParseQuestionWithSubQuestions(questionNumberText, questionText);
+                            checklistItems.AddRange(questionItems);
+                        }
+                        // Fallback to 2-column format for backwards compatibility
+                        else if (cells.Count >= 2)
+                        {
+                            var leftColumnText = cells[0].GetText().Trim();
+                            var rightColumnText = cells[1].GetText().Trim();
 
                             // Skip header rows or empty rows
                             if (string.IsNullOrWhiteSpace(rightColumnText) || 
@@ -157,16 +182,9 @@ namespace ChecklistGenerator.Services
                             {
                                 Id = itemId,
                                 Text = rightColumnText,
-                                Type = DetermineItemType(rightColumnText),
+                                Type = ChecklistItemType.Boolean, // Default to boolean for Yes/No questions
                                 IsRequired = IsRequiredField(rightColumnText)
                             };
-
-                            if (item.Type == ChecklistItemType.RadioGroup || 
-                                item.Type == ChecklistItemType.Dropdown ||
-                                item.Type == ChecklistItemType.Checkbox)
-                            {
-                                item.Options = ExtractOptions(rightColumnText);
-                            }
 
                             checklistItems.Add(item);
                         }
@@ -188,6 +206,10 @@ namespace ChecklistGenerator.Services
                     var text = GetParagraphText(paragraphs[i]);
                     
                     if (string.IsNullOrWhiteSpace(text))
+                        continue;
+
+                    // Skip cover page content
+                    if (IsCoverPageContent(text))
                         continue;
 
                     // Check if this line starts with lowercase and should be consolidated with previous item
@@ -219,7 +241,27 @@ namespace ChecklistGenerator.Services
                     foreach (var row in rows)
                     {
                         var cells = row.Elements<TableCell>().ToList();
-                        if (cells.Count >= 2)
+                        
+                        // Handle 4-column format: [Question Number] [Text] [Clause Number/Box] [Empty Box]
+                        if (cells.Count >= 4)
+                        {
+                            var questionNumberText = GetCellText(cells[0]).Trim();
+                            var questionText = GetCellText(cells[1]).Trim();
+
+                            // Skip header rows or empty rows
+                            if (string.IsNullOrWhiteSpace(questionText) || 
+                                questionText.Length < 3 ||
+                                IsHeaderRow(questionNumberText, questionText) ||
+                                IsCoverPageContent(questionText) ||
+                                IsCoverPageContent(questionNumberText))
+                                continue;
+
+                            // Parse the question number and any sub-questions
+                            var questionItems = ParseQuestionWithSubQuestions(questionNumberText, questionText);
+                            checklistItems.AddRange(questionItems);
+                        }
+                        // Fallback to 2-column format for backwards compatibility
+                        else if (cells.Count >= 2)
                         {
                             var leftColumnText = GetCellText(cells[0]).Trim();
                             var rightColumnText = GetCellText(cells[1]).Trim();
@@ -247,16 +289,9 @@ namespace ChecklistGenerator.Services
                             {
                                 Id = itemId,
                                 Text = rightColumnText,
-                                Type = DetermineItemType(rightColumnText),
+                                Type = ChecklistItemType.Boolean, // Default to boolean for Yes/No questions
                                 IsRequired = IsRequiredField(rightColumnText)
                             };
-
-                            if (item.Type == ChecklistItemType.RadioGroup || 
-                                item.Type == ChecklistItemType.Dropdown ||
-                                item.Type == ChecklistItemType.Checkbox)
-                            {
-                                item.Options = ExtractOptions(rightColumnText);
-                            }
 
                             checklistItems.Add(item);
                         }
@@ -280,7 +315,7 @@ namespace ChecklistGenerator.Services
             // Clean up the text
             text = text.Trim();
             
-            // Skip very short text, empty lines, or obvious document headers/titles
+            // Skip very short text, empty lines, obvious document headers/titles, or cover page content
             if (string.IsNullOrWhiteSpace(text) || 
                 text.Length < 3 ||
                 text.ToLower().Equals("section") ||
@@ -288,6 +323,7 @@ namespace ChecklistGenerator.Services
                 text.ToLower().Equals("application form") ||
                 text.ToLower().Equals("checklist") ||
                 text.ToLower().StartsWith("page ") ||
+                IsCoverPageContent(text) ||
                 Regex.IsMatch(text, @"^\d+$")) // Skip standalone numbers
                 return null;
 
@@ -332,6 +368,174 @@ namespace ChecklistGenerator.Services
             }
 
             return string.Empty;
+        }
+
+        // Helper method to determine if a row is a header row
+        private bool IsHeaderRow(string questionNumber, string questionText)
+        {
+            var lowerQuestionText = questionText.ToLower();
+            var lowerQuestionNumber = questionNumber.ToLower();
+            
+            // Check for common header patterns
+            return lowerQuestionText.Contains("question") ||
+                   lowerQuestionText.Contains("number") ||
+                   lowerQuestionText.Contains("text") ||
+                   lowerQuestionText.Contains("clause") ||
+                   lowerQuestionText.Equals("section") ||
+                   lowerQuestionText.Equals("guidance") ||
+                   lowerQuestionNumber.Contains("no.") ||
+                   lowerQuestionNumber.Contains("number") ||
+                   (string.IsNullOrWhiteSpace(questionNumber) && string.IsNullOrWhiteSpace(questionText));
+        }
+
+        // Helper method to determine if content is part of a cover page
+        private bool IsCoverPageContent(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            var lowerText = text.ToLower();
+            
+            // Common cover page indicators
+            var coverPageIndicators = new[]
+            {
+                "cover page",
+                "title page",
+                "application form",
+                "guidance notes",
+                "checklist",
+                "ucits",
+                "fund",
+                "management company",
+                "central bank",
+                "version",
+                "date:",
+                "prepared by",
+                "reviewed by",
+                "approved by",
+                "document control",
+                "confidential",
+                "internal use",
+                "draft",
+                "final"
+            };
+
+            // Check if text contains cover page indicators
+            foreach (var indicator in coverPageIndicators)
+            {
+                if (lowerText.Contains(indicator))
+                    return true;
+            }
+
+            // Check if it's a standalone title (all caps, short text)
+            if (text.Length < 100 && text == text.ToUpper() && text.Split(' ').Length < 10)
+                return true;
+
+            // Check if it's a date pattern
+            if (Regex.IsMatch(text, @"\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b") && text.Length < 50)
+                return true;
+
+            return false;
+        }
+
+        // Helper method to parse a question with potential sub-questions
+        private List<ChecklistItem> ParseQuestionWithSubQuestions(string questionNumber, string questionText)
+        {
+            var items = new List<ChecklistItem>();
+            
+            // Clean the question number and text
+            questionNumber = CleanQuestionNumber(questionNumber);
+            questionText = questionText.Trim();
+            
+            if (string.IsNullOrWhiteSpace(questionText))
+                return items;
+
+            // Check if the text contains sub-questions like (a), (b), etc.
+            var subQuestionMatches = Regex.Matches(questionText, @"\(([a-z])\)\s*([^(]*?)(?=\([a-z]\)|$)", RegexOptions.IgnoreCase);
+            
+            if (subQuestionMatches.Count > 1)
+            {
+                // Process each sub-question
+                foreach (Match match in subQuestionMatches)
+                {
+                    if (match.Groups.Count >= 3)
+                    {
+                        var subQuestionLetter = match.Groups[1].Value.ToLower();
+                        var subQuestionText = match.Groups[2].Value.Trim();
+                        
+                        if (!string.IsNullOrWhiteSpace(subQuestionText))
+                        {
+                            var itemId = $"item_{questionNumber}_{subQuestionLetter}";
+                            items.Add(new ChecklistItem
+                            {
+                                Id = itemId,
+                                Text = subQuestionText,
+                                Type = ChecklistItemType.Boolean, // Default to boolean for Yes/No questions
+                                IsRequired = IsRequiredField(subQuestionText)
+                            });
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Check for alternative sub-question patterns like "a)", "b)" etc.
+                var altSubQuestionMatches = Regex.Matches(questionText, @"([a-z])\)\s*([^a-z)]*?)(?=[a-z]\)|$)", RegexOptions.IgnoreCase);
+                
+                if (altSubQuestionMatches.Count > 1)
+                {
+                    // Process each alternative sub-question
+                    foreach (Match match in altSubQuestionMatches)
+                    {
+                        if (match.Groups.Count >= 3)
+                        {
+                            var subQuestionLetter = match.Groups[1].Value.ToLower();
+                            var subQuestionText = match.Groups[2].Value.Trim();
+                            
+                            if (!string.IsNullOrWhiteSpace(subQuestionText))
+                            {
+                                var itemId = $"item_{questionNumber}_{subQuestionLetter}";
+                                items.Add(new ChecklistItem
+                                {
+                                    Id = itemId,
+                                    Text = subQuestionText,
+                                    Type = ChecklistItemType.Boolean, // Default to boolean for Yes/No questions
+                                    IsRequired = IsRequiredField(subQuestionText)
+                                });
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // No sub-questions, treat as single question
+                    var itemId = $"item_{questionNumber}";
+                    items.Add(new ChecklistItem
+                    {
+                        Id = itemId,
+                        Text = questionText,
+                        Type = ChecklistItemType.Boolean, // Default to boolean for Yes/No questions
+                        IsRequired = IsRequiredField(questionText)
+                    });
+                }
+            }
+            
+            return items;
+        }
+
+        // Helper method to clean and normalize question numbers
+        private string CleanQuestionNumber(string questionNumber)
+        {
+            if (string.IsNullOrWhiteSpace(questionNumber))
+                return "unknown";
+            
+            // Remove common punctuation and whitespace, replace dots with underscores for valid IDs
+            return questionNumber.Trim()
+                                .TrimEnd('.', ')', ':')
+                                .Trim('(', ')')
+                                .Replace(".", "_")
+                                .Replace(" ", "_")
+                                .ToLower();
         }
 
         // Helper method to check if text is just numbering (for left column)

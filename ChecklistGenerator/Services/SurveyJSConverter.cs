@@ -11,7 +11,7 @@ namespace ChecklistGenerator.Services
             {
                 Title = title,
                 Description = "This survey was generated from a Word document checklist",
-                ShowProgressBar = true,
+                ShowProgressBar = "top",
                 CompleteText = "Submit"
             };
 
@@ -37,54 +37,9 @@ namespace ChecklistGenerator.Services
                 Name = item.Id,
                 Title = item.Text,
                 Description = item.Description,
-                IsRequired = item.IsRequired
+                IsRequired = item.IsRequired,
+                Type = "boolean" // All controls are now boolean (Yes/No)
             };
-
-            switch (item.Type)
-            {
-                case ChecklistItemType.Text:
-                    element.Type = "text";
-                    break;
-
-                case ChecklistItemType.Boolean:
-                    element.Type = "boolean";
-                    break;
-
-                case ChecklistItemType.RadioGroup:
-                    element.Type = "radiogroup";
-                    element.Choices = item.Options.Select((option, index) => new SurveyJSChoice
-                    {
-                        Value = (index + 1).ToString(),
-                        Text = option
-                    }).ToList();
-                    break;
-
-                case ChecklistItemType.Checkbox:
-                    element.Type = "checkbox";
-                    element.Choices = item.Options.Select((option, index) => new SurveyJSChoice
-                    {
-                        Value = (index + 1).ToString(),
-                        Text = option
-                    }).ToList();
-                    break;
-
-                case ChecklistItemType.Dropdown:
-                    element.Type = "dropdown";
-                    element.Choices = item.Options.Select((option, index) => new SurveyJSChoice
-                    {
-                        Value = (index + 1).ToString(),
-                        Text = option
-                    }).ToList();
-                    break;
-
-                case ChecklistItemType.Comment:
-                    element.Type = "comment";
-                    break;
-
-                default:
-                    element.Type = "text";
-                    break;
-            }
 
             return element;
         }

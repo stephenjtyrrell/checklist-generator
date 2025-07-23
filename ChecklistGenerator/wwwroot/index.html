@@ -6,11 +6,25 @@
     <title>Checklist Generator</title>
     
     <!-- SurveyJS CSS -->
-    <link href="https://unpkg.com/survey-core/defaultV2.min.css" type="text/css" rel="stylesheet">
+    <link href="https://unpkg.com/survey-jquery/defaultV2.min.css" type="text/css" rel="stylesheet">
+    
+    <!-- jQuery (required for survey-jquery) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
     <!-- SurveyJS JavaScript -->
-    <script type="text/javascript" src="https://unpkg.com/survey-core/survey.core.min.js"></script>
-    <script type="text/javascript" src="https://unpkg.com/survey-js-ui/survey-js-ui.min.js"></script>
+    <script type="text/javascript" src="https://unpkg.com/survey-jquery/survey.jquery.min.js"></script>
+    
+    <script>
+        // Initialize SurveyJS after libraries load
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof Survey !== 'undefined') {
+                console.log('SurveyJS loaded successfully');
+                console.log('Survey version:', Survey.Version);
+            } else {
+                console.error('SurveyJS failed to load');
+            }
+        });
+    </script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -401,15 +415,15 @@
             
             try {
                 const surveyJson = JSON.parse(currentJsonOutput);
+                console.log('Parsed survey JSON:', surveyJson);
                 
-                // Create SurveyJS model
+                // Validate that Survey is available
+                if (typeof Survey === 'undefined') {
+                    throw new Error('SurveyJS library not loaded');
+                }
+                
+                // Create SurveyJS model directly with the parsed JSON
                 const survey = new Survey.Model(surveyJson);
-                
-                // Customize survey appearance
-                survey.showProgressBar = "top";
-                survey.progressBarType = "buttons";
-                survey.completeText = "Submit Survey";
-                survey.showCompletedPage = false;
                 
                 // Handle survey completion
                 survey.onComplete.add(function (sender) {
@@ -418,10 +432,14 @@
                 });
                 
                 // Clear previous survey
-                document.getElementById("surveyElement").innerHTML = "";
+                const surveyElement = document.getElementById("surveyElement");
+                surveyElement.innerHTML = "";
                 
-                // Render the survey
-                survey.render("surveyElement");
+                // Use jQuery to render the survey (survey-jquery version)
+                $("#surveyElement").Survey({
+                    model: survey
+                });
+                
                 currentSurvey = survey;
                 
                 // Show survey section
@@ -429,8 +447,9 @@
                 document.getElementById('surveySection').scrollIntoView({ behavior: 'smooth' });
                 
             } catch (error) {
-                alert('Error rendering survey: ' + error.message);
-                console.error('Survey rendering error:', error);
+                console.error('Survey rendering error details:', error);
+                console.error('Current JSON output:', currentJsonOutput);
+                alert('Error rendering survey: ' + error.message + '\n\nPlease check the browser console for more details.');
             }
         }
         

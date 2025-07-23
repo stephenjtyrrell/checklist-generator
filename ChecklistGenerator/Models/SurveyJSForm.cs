@@ -5,7 +5,7 @@ namespace ChecklistGenerator.Models
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public List<SurveyJSElement> Elements { get; set; } = new List<SurveyJSElement>();
-        public bool ShowProgressBar { get; set; } = false;
+        public string ShowProgressBar { get; set; } = "top";
         public string CompleteText { get; set; } = "Complete";
     }
 

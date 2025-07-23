@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ChecklistGenerator")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+01f41104bdc354cd36d2a59f8a83e6b5bcdc1fbf")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9802c1db5ee8fb2aebb5717798ff75c16b0485c6")]
 [assembly: System.Reflection.AssemblyProductAttribute("ChecklistGenerator")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ChecklistGenerator")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

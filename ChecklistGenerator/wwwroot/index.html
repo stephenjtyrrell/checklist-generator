@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Checklist Generator</title>
+    
+    <!-- SurveyJS CSS -->
+    <link href="https://unpkg.com/survey-core/defaultV2.min.css" type="text/css" rel="stylesheet">
+    
+    <!-- SurveyJS JavaScript -->
+    <script type="text/javascript" src="https://unpkg.com/survey-core/survey.core.min.js"></script>
+    <script type="text/javascript" src="https://unpkg.com/survey-js-ui/survey-js-ui.min.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -145,6 +152,63 @@
             margin-top: 0;
             color: #0056b3;
         }
+        
+        .survey-section {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 30px;
+            margin-top: 30px;
+            display: none;
+        }
+        
+        .survey-section h3 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .survey-controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .survey-controls button {
+            margin: 0 10px;
+        }
+        
+        #surveyElement {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .survey-results {
+            background-color: #e8f5e8;
+            border: 1px solid #c3e6cb;
+            border-radius: 5px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .survey-results h4 {
+            color: #155724;
+            margin-top: 0;
+        }
+        
+        .results-json {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body>
@@ -160,9 +224,12 @@
                 <li>The application will analyze the document structure</li>
                 <li>Extract questions, checkboxes, and form elements</li>
                 <li>Convert them into SurveyJS JSON format</li>
+                <li>📝 <strong>Preview the interactive survey form</strong> with real SurveyJS rendering</li>
+                <li>💾 <strong>Test and export survey responses</strong> for analysis</li>
                 <li>Download or copy the generated JSON for use in your surveys</li>
             </ul>
             <p><strong>Note:</strong> Legacy .doc files are automatically converted to .docx format for better processing.</p>
+            <p><strong>New:</strong> Click "Preview Survey Form" to see how your generated survey will look and behave in a real SurveyJS application!</p>
         </div>
         
         <div class="upload-section">
@@ -194,11 +261,39 @@
             <button onclick="copyToClipboard()" style="margin-top: 15px;">
                 📋 Copy JSON to Clipboard
             </button>
+            <button onclick="renderSurvey()" style="margin-top: 15px;">
+                🎯 Preview Survey Form
+            </button>
+        </div>
+        
+        <div class="survey-section" id="surveySection">
+            <h3>📝 Interactive Survey Preview</h3>
+            <div class="survey-controls">
+                <button onclick="hideSurvey()">
+                    ← Back to JSON
+                </button>
+                <button onclick="clearSurvey()">
+                    🔄 Reset Form
+                </button>
+                <button onclick="exportSurveyResults()">
+                    💾 Export Results
+                </button>
+            </div>
+            <div id="surveyElement"></div>
+            <div class="survey-results" id="surveyResults">
+                <h4>📊 Survey Results</h4>
+                <div class="results-json" id="resultsJson"></div>
+                <button onclick="copySurveyResults()" style="margin-top: 15px;">
+                    📋 Copy Results to Clipboard
+                </button>
+            </div>
         </div>
     </div>
 
     <script>
         let currentJsonOutput = '';
+        let currentSurvey = null;
+        let surveyResults = {};
 
         async function uploadFile() {
             const fileInput = document.getElementById('fileInput');
@@ -214,6 +309,7 @@
             
             showLoading(true);
             hideResult();
+            hideSurvey();
             
             try {
                 const response = await fetch('/api/checklist/upload', {
@@ -264,6 +360,7 @@
         async function loadSample() {
             showLoading(true);
             hideResult();
+            hideSurvey();
             
             try {
                 const response = await fetch('/api/checklist/sample');
@@ -293,6 +390,146 @@
                 );
             } finally {
                 showLoading(false);
+            }
+        }
+        
+        function renderSurvey() {
+            if (!currentJsonOutput) {
+                alert('No survey JSON to render. Please upload a document first.');
+                return;
+            }
+            
+            try {
+                const surveyJson = JSON.parse(currentJsonOutput);
+                
+                // Create SurveyJS model
+                const survey = new Survey.Model(surveyJson);
+                
+                // Customize survey appearance
+                survey.showProgressBar = "top";
+                survey.progressBarType = "buttons";
+                survey.completeText = "Submit Survey";
+                survey.showCompletedPage = false;
+                
+                // Handle survey completion
+                survey.onComplete.add(function (sender) {
+                    surveyResults = sender.data;
+                    showSurveyResults(surveyResults);
+                });
+                
+                // Clear previous survey
+                document.getElementById("surveyElement").innerHTML = "";
+                
+                // Render the survey
+                survey.render("surveyElement");
+                currentSurvey = survey;
+                
+                // Show survey section
+                document.getElementById('surveySection').style.display = 'block';
+                document.getElementById('surveySection').scrollIntoView({ behavior: 'smooth' });
+                
+            } catch (error) {
+                alert('Error rendering survey: ' + error.message);
+                console.error('Survey rendering error:', error);
+            }
+        }
+        
+        function showSurveyResults(results) {
+            const resultsDiv = document.getElementById('surveyResults');
+            const resultsJson = document.getElementById('resultsJson');
+            
+            resultsJson.textContent = JSON.stringify(results, null, 2);
+            resultsDiv.style.display = 'block';
+            
+            // Scroll to results
+            resultsDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function hideSurvey() {
+            const surveySection = document.getElementById('surveySection');
+            const resultsDiv = document.getElementById('surveyResults');
+            
+            surveySection.style.display = 'none';
+            resultsDiv.style.display = 'none';
+            
+            // Clear survey instance
+            if (currentSurvey) {
+                document.getElementById("surveyElement").innerHTML = "";
+                currentSurvey = null;
+            }
+        }
+        
+        function clearSurvey() {
+            if (currentSurvey) {
+                currentSurvey.clear();
+                document.getElementById('surveyResults').style.display = 'none';
+                surveyResults = {};
+            }
+        }
+        
+        async function exportSurveyResults() {
+            if (!surveyResults || Object.keys(surveyResults).length === 0) {
+                alert('No survey results to export. Please complete the survey first.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/checklist/saveResults', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        surveyData: surveyResults,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    alert('Survey results exported successfully! ID: ' + result.id);
+                } else {
+                    throw new Error('Failed to export results');
+                }
+            } catch (error) {
+                console.error('Export error:', error);
+                // Fallback: download as JSON file
+                downloadResultsAsJson();
+            }
+        }
+        
+        function downloadResultsAsJson() {
+            const dataStr = JSON.stringify(surveyResults, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `survey-results-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            alert('Survey results downloaded as JSON file.');
+        }
+        
+        async function copySurveyResults() {
+            if (!surveyResults || Object.keys(surveyResults).length === 0) {
+                alert('No survey results to copy.');
+                return;
+            }
+            
+            try {
+                await navigator.clipboard.writeText(JSON.stringify(surveyResults, null, 2));
+                alert('Survey results copied to clipboard!');
+            } catch (err) {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = JSON.stringify(surveyResults, null, 2);
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                alert('Survey results copied to clipboard!');
             }
         }
         

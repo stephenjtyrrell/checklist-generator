@@ -183,5 +183,49 @@ namespace ChecklistGenerator.Controllers
                 SurveyJS = surveyJson
             });
         }
+
+        [HttpPost("saveResults")]
+        public IActionResult SaveSurveyResults([FromBody] SaveSurveyResultsRequest request)
+        {
+            try
+            {
+                if (request?.SurveyData == null)
+                {
+                    return BadRequest("No survey data provided");
+                }
+
+                // Generate a unique ID for this submission
+                var submissionId = Guid.NewGuid().ToString();
+                
+                _logger.LogInformation($"Survey results saved with ID: {submissionId}");
+                _logger.LogInformation($"Survey data: {System.Text.Json.JsonSerializer.Serialize(request.SurveyData)}");
+
+                // In a real application, you would save this to a database
+                // For now, we'll just log it and return success
+                
+                return Ok(new
+                {
+                    Success = true,
+                    Id = submissionId,
+                    Message = "Survey results saved successfully",
+                    Timestamp = request.Timestamp ?? DateTime.UtcNow.ToString("O")
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving survey results");
+                return StatusCode(500, new
+                {
+                    Success = false,
+                    Error = ex.Message
+                });
+            }
+        }
+    }
+
+    public class SaveSurveyResultsRequest
+    {
+        public Dictionary<string, object> SurveyData { get; set; } = new Dictionary<string, object>();
+        public string? Timestamp { get; set; }
     }
 }

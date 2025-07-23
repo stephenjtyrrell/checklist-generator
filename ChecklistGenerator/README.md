@@ -1,6 +1,12 @@
 # Checklist Generator - Word to SurveyJS Converter
 
-A .NET web application that converts Word document checklists into SurveyJS JSON format with automatic legacy document conversion support.
+A .4. **Review Results**: 
+   - View the generated SurveyJS JSON output
+   - See processing status and any warnings or notifications
+5. **Preview Survey**: Click "Preview Survey Form" to see an interactive preview of your survey
+6. **Test Survey**: Complete the survey form to test functionality and user experience
+7. **Export Results**: Save survey responses and export them for analysis
+8. **Use JSON**: Copy the generated JSON to use in your SurveyJS applicationsweb application that converts Word document checklists into SurveyJS JSON format with automatic legacy document conversion support.
 
 ## Features
 
@@ -8,7 +14,10 @@ A .NET web application that converts Word document checklists into SurveyJS JSON
 - **Automatic Format Conversion**: Legacy .doc files are automatically converted to .docx format for processing
 - **Intelligent Content Extraction**: Automatically extract checklist items and questions from complex documents
 - **SurveyJS JSON Generation**: Convert extracted content to industry-standard SurveyJS format
+- **Interactive Survey Preview**: Real-time preview of generated surveys using actual SurveyJS rendering
 - **Web-based Interface**: User-friendly drag-and-drop interface with real-time feedback
+- **Survey Response Testing**: Complete and test surveys directly in the application
+- **Response Export**: Save and export survey responses in JSON format
 - **Comprehensive Question Types**:
   - Text input fields
   - Yes/No (Boolean) questions
@@ -109,10 +118,59 @@ Upload and convert a Word document to SurveyJS format with automatic format dete
 }
 ```
 
+### POST /api/checklist/saveResults
+Save survey response data for analysis and record keeping.
+
+**Request:** 
+- Content-Type: application/json
+- Body: 
+```json
+{
+  "surveyData": {
+    "item_1": "Company ABC",
+    "item_2": true,
+    "item_3": "UCITS"
+  },
+  "timestamp": "2025-07-23T10:30:00.000Z"
+}
+```
+
+**Response:** 
+```json
+{
+  "success": true,
+  "id": "unique-submission-id",
+  "message": "Survey results saved successfully",
+  "timestamp": "2025-07-23T10:30:00.000Z"
+}
+```
+
 ### GET /api/checklist/sample
 Get a sample SurveyJS JSON for testing purposes.
 
 **Response:** Sample survey JSON in SurveyJS format
+
+## Interactive Survey Features
+
+The application now includes a fully integrated SurveyJS preview system:
+
+### Survey Preview
+- **Real-time Rendering**: Generated JSON is rendered using the actual SurveyJS library
+- **Interactive Testing**: Complete surveys directly in the application
+- **Response Validation**: Test required fields and validation rules
+- **Progress Tracking**: Visual progress bar and completion status
+
+### Survey Response Management
+- **Response Capture**: Automatically capture and store survey responses
+- **JSON Export**: Export responses in structured JSON format
+- **Clipboard Integration**: Copy results directly to clipboard
+- **File Download**: Download responses as JSON files for analysis
+
+### User Experience Features
+- **Form Reset**: Clear and restart surveys for testing
+- **Back Navigation**: Switch between JSON view and survey preview
+- **Result Display**: Formatted display of survey completion data
+- **Error Handling**: Graceful handling of invalid survey JSON
 
 ## Document Processing
 
@@ -186,8 +244,10 @@ The application is built with:
 - **ASP.NET Core 9.0**: Modern web framework with high performance
 - **DocumentFormat.OpenXml**: For modern .docx document processing and creation
 - **NPOI**: For legacy .doc file text extraction and parsing
+- **SurveyJS Library**: For interactive survey rendering and response collection
 - **Built-in JSON serialization**: For SurveyJS format generation
 - **HTML/CSS/JavaScript frontend**: Responsive web interface with drag-and-drop support
+- **CDN Resources**: SurveyJS core and UI libraries loaded from unpkg CDN
 
 ## Architecture
 

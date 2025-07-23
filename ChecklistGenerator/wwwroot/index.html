@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checklist Generator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .upload-section {
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-section:hover {
+            border-color: #007bff;
+            background-color: #f8f9fa;
+        }
+        
+        .file-input {
+            margin: 20px 0;
+        }
+        
+        input[type="file"] {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 100%;
+            max-width: 300px;
+        }
+        
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+            transition: background-color 0.3s ease;
+        }
+        
+        button:hover {
+            background-color: #0056b3;
+        }
+        
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .result-section {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 5px;
+            display: none;
+        }
+        
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffecb5;
+            color: #856404;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .json-output {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .info-section {
+            background-color: #e7f3ff;
+            border: 1px solid #b3d7ff;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .info-section h3 {
+            margin-top: 0;
+            color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📋 Checklist to SurveyJS Converter</h1>
+        
+        <div class="info-section">
+            <h3>How it works:</h3>
+            <ul>
+                <li>Upload a Word document (.doc or .docx) containing checklist items</li>
+                <li>✅ <strong>Full support for .docx files</strong> (modern Word format)</li>
+                <li>✅ <strong>Automatic .doc to .docx conversion</strong> (legacy files are converted first)</li>
+                <li>The application will analyze the document structure</li>
+                <li>Extract questions, checkboxes, and form elements</li>
+                <li>Convert them into SurveyJS JSON format</li>
+                <li>Download or copy the generated JSON for use in your surveys</li>
+            </ul>
+            <p><strong>Note:</strong> Legacy .doc files are automatically converted to .docx format for better processing.</p>
+        </div>
+        
+        <div class="upload-section">
+            <h3>📁 Upload Word Document</h3>
+            <p>Select a .doc or .docx file containing your checklist</p>
+            
+            <div class="file-input">
+                <input type="file" id="fileInput" accept=".doc,.docx" />
+            </div>
+            
+            <button onclick="uploadFile()" id="uploadBtn">
+                🚀 Convert to SurveyJS
+            </button>
+            
+            <button onclick="loadSample()" id="sampleBtn">
+                📄 Load Sample Survey
+            </button>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Processing your document...</p>
+        </div>
+        
+        <div class="result-section" id="resultSection">
+            <h3 id="resultTitle">Results</h3>
+            <p id="resultMessage"></p>
+            <div class="json-output" id="jsonOutput"></div>
+            <button onclick="copyToClipboard()" style="margin-top: 15px;">
+                📋 Copy JSON to Clipboard
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let currentJsonOutput = '';
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a file first.');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            showLoading(true);
+            hideResult();
+            
+            try {
+                const response = await fetch('/api/checklist/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    var message = `Found ${result.itemCount} checklist items and converted them to SurveyJS format.`;
+                    if (result.wasConverted) {
+                        message += `\n\n🔄 File was automatically converted from .doc to .docx format for better processing.`;
+                    }
+                    if (result.message) {
+                        message += `\n\n${result.message}`;
+                    }
+                    
+                    var resultType = result.hasIssues ? 'warning' : 'success';
+                    var icon = result.hasIssues ? '⚠️' : result.wasConverted ? '🔄✅' : '✅';
+                    
+                    showResult(
+                        `${icon} Processed "${result.fileName}"`,
+                        message,
+                        result.surveyJS,
+                        resultType
+                    );
+                } else {
+                    showResult(
+                        '❌ Processing Failed',
+                        result.error || 'An unknown error occurred.',
+                        '',
+                        'error'
+                    );
+                }
+            } catch (error) {
+                showResult(
+                    '❌ Upload Failed',
+                    'Network error: ' + error.message,
+                    '',
+                    'error'
+                );
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        async function loadSample() {
+            showLoading(true);
+            hideResult();
+            
+            try {
+                const response = await fetch('/api/checklist/sample');
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult(
+                        '📄 Sample Survey Loaded',
+                        'This is a sample SurveyJS form to demonstrate the output format.',
+                        result.surveyJS,
+                        'success'
+                    );
+                } else {
+                    showResult(
+                        '❌ Failed to Load Sample',
+                        'Could not load sample survey.',
+                        '',
+                        'error'
+                    );
+                }
+            } catch (error) {
+                showResult(
+                    '❌ Load Failed',
+                    'Network error: ' + error.message,
+                    '',
+                    'error'
+                );
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const sampleBtn = document.getElementById('sampleBtn');
+            
+            if (show) {
+                loading.style.display = 'block';
+                uploadBtn.disabled = true;
+                sampleBtn.disabled = true;
+            } else {
+                loading.style.display = 'none';
+                uploadBtn.disabled = false;
+                sampleBtn.disabled = false;
+            }
+        }
+        
+        function showResult(title, message, jsonOutput, type) {
+            const resultSection = document.getElementById('resultSection');
+            const resultTitle = document.getElementById('resultTitle');
+            const resultMessage = document.getElementById('resultMessage');
+            const jsonOutputDiv = document.getElementById('jsonOutput');
+            
+            resultTitle.textContent = title;
+            resultMessage.textContent = message;
+            jsonOutputDiv.textContent = jsonOutput;
+            currentJsonOutput = jsonOutput;
+            
+            resultSection.className = `result-section ${type}`;
+            resultSection.style.display = 'block';
+            
+            // Scroll to results
+            resultSection.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function hideResult() {
+            const resultSection = document.getElementById('resultSection');
+            resultSection.style.display = 'none';
+        }
+        
+        async function copyToClipboard() {
+            try {
+                await navigator.clipboard.writeText(currentJsonOutput);
+                alert('JSON copied to clipboard!');
+            } catch (err) {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = currentJsonOutput;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                alert('JSON copied to clipboard!');
+            }
+        }
+        
+        // Drag and drop functionality
+        const uploadSection = document.querySelector('.upload-section');
+        
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.style.backgroundColor = '#e3f2fd';
+            uploadSection.style.borderColor = '#007bff';
+        });
+        
+        uploadSection.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadSection.style.backgroundColor = '';
+            uploadSection.style.borderColor = '#ddd';
+        });
+        
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.style.backgroundColor = '';
+            uploadSection.style.borderColor = '#ddd';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                document.getElementById('fileInput').files = files;
+            }
+        });
+    </script>
+</body>
+</html>

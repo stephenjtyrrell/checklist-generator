@@ -101,11 +101,21 @@ namespace ChecklistGenerator.Services
                 var itemCounter = 1;
 
                 // Process paragraphs
-                foreach (var paragraph in doc.Paragraphs)
+                for (int i = 0; i < doc.Paragraphs.Count; i++)
                 {
+                    var paragraph = doc.Paragraphs[i];
                     var text = paragraph.Text;
                     if (string.IsNullOrWhiteSpace(text))
                         continue;
+
+                    // Check if this line starts with lowercase and should be consolidated with previous item
+                    if (ShouldConsolidateWithPrevious(text) && checklistItems.Count > 0)
+                    {
+                        // Consolidate with the previous item
+                        var lastItem = checklistItems.Last();
+                        lastItem.Text = lastItem.Text.TrimEnd() + " " + text.Trim();
+                        continue;
+                    }
 
                     var item = AnalyzeTextForChecklistItem(text, itemCounter++);
                     if (item != null)
@@ -121,28 +131,44 @@ namespace ChecklistGenerator.Services
                     {
                         if (row.GetTableCells().Count >= 2)
                         {
-                            var questionText = row.GetTableCells()[0].GetText();
-                            var answerText = row.GetTableCells()[1].GetText();
+                            var leftColumnText = row.GetTableCells()[0].GetText().Trim();
+                            var rightColumnText = row.GetTableCells()[1].GetText().Trim();
 
-                            if (!string.IsNullOrWhiteSpace(questionText))
+                            // Skip header rows or empty rows
+                            if (string.IsNullOrWhiteSpace(rightColumnText) || 
+                                rightColumnText.Length < 3)
+                                continue;
+
+                            // Use left column as the number/identifier if it contains numbering
+                            string itemId;
+                            if (!string.IsNullOrWhiteSpace(leftColumnText) && IsNumberingText(leftColumnText))
                             {
-                                var item = new ChecklistItem
-                                {
-                                    Id = Guid.NewGuid().ToString(),
-                                    Text = questionText.Trim(),
-                                    Type = DetermineItemType(answerText),
-                                    IsRequired = IsRequiredField(questionText)
-                                };
-
-                                if (item.Type == ChecklistItemType.RadioGroup || 
-                                    item.Type == ChecklistItemType.Dropdown ||
-                                    item.Type == ChecklistItemType.Checkbox)
-                                {
-                                    item.Options = ExtractOptions(answerText);
-                                }
-
-                                checklistItems.Add(item);
+                                // Clean the numbering text and use it as ID
+                                itemId = $"item_{CleanNumberingText(leftColumnText)}";
                             }
+                            else
+                            {
+                                // Extract numbering from the question text itself, or use GUID
+                                string extractedNumber = ExtractNumberingFromText(rightColumnText);
+                                itemId = !string.IsNullOrEmpty(extractedNumber) ? extractedNumber : Guid.NewGuid().ToString();
+                            }
+
+                            var item = new ChecklistItem
+                            {
+                                Id = itemId,
+                                Text = rightColumnText,
+                                Type = DetermineItemType(rightColumnText),
+                                IsRequired = IsRequiredField(rightColumnText)
+                            };
+
+                            if (item.Type == ChecklistItemType.RadioGroup || 
+                                item.Type == ChecklistItemType.Dropdown ||
+                                item.Type == ChecklistItemType.Checkbox)
+                            {
+                                item.Options = ExtractOptions(rightColumnText);
+                            }
+
+                            checklistItems.Add(item);
                         }
                     }
                 }
@@ -156,13 +182,22 @@ namespace ChecklistGenerator.Services
             await Task.Run(() =>
             {
                 var itemCounter = 1;
-
-                foreach (var paragraph in paragraphs)
+                
+                for (int i = 0; i < paragraphs.Count; i++)
                 {
-                    var text = GetParagraphText(paragraph);
+                    var text = GetParagraphText(paragraphs[i]);
                     
                     if (string.IsNullOrWhiteSpace(text))
                         continue;
+
+                    // Check if this line starts with lowercase and should be consolidated with previous item
+                    if (ShouldConsolidateWithPrevious(text) && checklistItems.Count > 0)
+                    {
+                        // Consolidate with the previous item
+                        var lastItem = checklistItems.Last();
+                        lastItem.Text = lastItem.Text.TrimEnd() + " " + text.Trim();
+                        continue;
+                    }
 
                     var item = AnalyzeTextForChecklistItem(text, itemCounter++);
                     if (item != null)
@@ -186,28 +221,44 @@ namespace ChecklistGenerator.Services
                         var cells = row.Elements<TableCell>().ToList();
                         if (cells.Count >= 2)
                         {
-                            var questionText = GetCellText(cells[0]);
-                            var answerText = GetCellText(cells[1]);
+                            var leftColumnText = GetCellText(cells[0]).Trim();
+                            var rightColumnText = GetCellText(cells[1]).Trim();
 
-                            if (!string.IsNullOrWhiteSpace(questionText))
+                            // Skip header rows or empty rows
+                            if (string.IsNullOrWhiteSpace(rightColumnText) || 
+                                rightColumnText.Length < 3)
+                                continue;
+
+                            // Use left column as the number/identifier if it contains numbering
+                            string itemId;
+                            if (!string.IsNullOrWhiteSpace(leftColumnText) && IsNumberingText(leftColumnText))
                             {
-                                var item = new ChecklistItem
-                                {
-                                    Id = Guid.NewGuid().ToString(),
-                                    Text = questionText.Trim(),
-                                    Type = DetermineItemType(answerText),
-                                    IsRequired = IsRequiredField(questionText)
-                                };
-
-                                if (item.Type == ChecklistItemType.RadioGroup || 
-                                    item.Type == ChecklistItemType.Dropdown ||
-                                    item.Type == ChecklistItemType.Checkbox)
-                                {
-                                    item.Options = ExtractOptions(answerText);
-                                }
-
-                                checklistItems.Add(item);
+                                // Clean the numbering text and use it as ID
+                                itemId = $"item_{CleanNumberingText(leftColumnText)}";
                             }
+                            else
+                            {
+                                // Extract numbering from the question text itself, or use GUID
+                                string extractedNumber = ExtractNumberingFromText(rightColumnText);
+                                itemId = !string.IsNullOrEmpty(extractedNumber) ? extractedNumber : Guid.NewGuid().ToString();
+                            }
+
+                            var item = new ChecklistItem
+                            {
+                                Id = itemId,
+                                Text = rightColumnText,
+                                Type = DetermineItemType(rightColumnText),
+                                IsRequired = IsRequiredField(rightColumnText)
+                            };
+
+                            if (item.Type == ChecklistItemType.RadioGroup || 
+                                item.Type == ChecklistItemType.Dropdown ||
+                                item.Type == ChecklistItemType.Checkbox)
+                            {
+                                item.Options = ExtractOptions(rightColumnText);
+                            }
+
+                            checklistItems.Add(item);
                         }
                     }
                 }
@@ -226,30 +277,122 @@ namespace ChecklistGenerator.Services
 
         private ChecklistItem? AnalyzeTextForChecklistItem(string text, int itemNumber)
         {
-            // Skip headers and non-question text
-            if (text.Length < 10 || 
-                text.ToLower().Contains("section") ||
-                text.ToLower().Contains("guidance") ||
-                text.ToLower().Contains("application form"))
+            // Clean up the text
+            text = text.Trim();
+            
+            // Skip very short text, empty lines, or obvious document headers/titles
+            if (string.IsNullOrWhiteSpace(text) || 
+                text.Length < 3 ||
+                text.ToLower().Equals("section") ||
+                text.ToLower().Equals("guidance") ||
+                text.ToLower().Equals("application form") ||
+                text.ToLower().Equals("checklist") ||
+                text.ToLower().StartsWith("page ") ||
+                Regex.IsMatch(text, @"^\d+$")) // Skip standalone numbers
                 return null;
 
-            // Look for question patterns
-            if (text.Contains("?") || 
-                text.ToLower().StartsWith("please") ||
-                text.ToLower().Contains("provide") ||
-                text.ToLower().Contains("confirm") ||
-                text.ToLower().Contains("specify"))
+            // Extract any existing numbering from the text
+            string extractedNumber = ExtractNumberingFromText(text);
+            string questionText = text;
+
+            // If we found numbering, use it; otherwise use the sequential item number
+            string itemId = !string.IsNullOrEmpty(extractedNumber) ? extractedNumber : $"item_{itemNumber}";
+
+            // Include all other text as checklist items
+            return new ChecklistItem
             {
-                return new ChecklistItem
+                Id = itemId,
+                Text = questionText,
+                Type = DetermineItemTypeFromText(questionText),
+                IsRequired = IsRequiredField(questionText)
+            };
+        }
+
+        // Helper method to extract numbering from text
+        private string ExtractNumberingFromText(string text)
+        {
+            // Look for various numbering patterns at the start of text
+            var patterns = new[]
+            {
+                @"^(\d+)\.?\s*",           // "1. " or "1 " or "12. "
+                @"^(\d+\.\d+)\.?\s*",     // "1.1. " or "2.3 "
+                @"^\(([a-zA-Z])\)\s*",    // "(a) " or "(A) "
+                @"^([a-zA-Z])\)\s*",      // "a) " or "A) "
+                @"^\((\d+)\)\s*",         // "(1) " or "(12) "
+                @"^([IVXLCDM]+)\.?\s*",   // Roman numerals "I. " or "IV "
+            };
+
+            foreach (var pattern in patterns)
+            {
+                var match = Regex.Match(text, pattern);
+                if (match.Success)
                 {
-                    Id = $"item_{itemNumber}",
-                    Text = text.Trim(),
-                    Type = DetermineItemTypeFromText(text),
-                    IsRequired = IsRequiredField(text)
-                };
+                    return $"item_{match.Groups[1].Value}";
+                }
             }
 
-            return null;
+            return string.Empty;
+        }
+
+        // Helper method to check if text is just numbering (for left column)
+        private bool IsNumberingText(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            // Check if the text is primarily numbering
+            var numberingPatterns = new[]
+            {
+                @"^\d+\.?$",              // "1" or "1."
+                @"^\d+\.\d+\.?$",         // "1.1" or "1.1."
+                @"^\([a-zA-Z]\)$",        // "(a)" or "(A)"
+                @"^[a-zA-Z]\)$",          // "a)" or "A)"
+                @"^\(\d+\)$",             // "(1)" or "(12)"
+                @"^[IVXLCDM]+\.?$",       // Roman numerals "I" or "IV."
+            };
+
+            return numberingPatterns.Any(pattern => Regex.IsMatch(text.Trim(), pattern));
+        }
+
+        // Helper method to clean numbering text for use as identifier
+        private string CleanNumberingText(string text)
+        {
+            // Remove common punctuation and whitespace from numbering
+            return text.Trim()
+                      .TrimEnd('.', ')', ':')
+                      .Trim('(', ')')
+                      .Trim();
+        }
+
+        // Helper method to check if text should be consolidated (starts with lowercase but has exceptions)
+        private bool ShouldConsolidateWithPrevious(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text) || text.Length == 0)
+                return false;
+
+            // Don't consolidate if it starts with numbering patterns
+            var numberingPatterns = new[]
+            {
+                @"^\d+\.?\s*",           // "1. " or "1 " or "12. "
+                @"^\d+\.\d+\.?\s*",     // "1.1. " or "2.3 "
+                @"^\([a-zA-Z]\)\s*",    // "(a) " or "(A) "
+                @"^[a-zA-Z]\)\s*",      // "a) " or "A) "
+                @"^\(\d+\)\s*",         // "(1) " or "(12) "
+                @"^[IVXLCDM]+\.?\s*",   // Roman numerals "I. " or "IV "
+            };
+
+            foreach (var pattern in numberingPatterns)
+            {
+                if (Regex.IsMatch(text, pattern))
+                    return false;
+            }
+
+            // Don't consolidate if it contains colons (likely section headers)
+            if (text.Contains(":"))
+                return false;
+
+            // Consolidate if starts with lowercase letter and no numbering
+            return char.IsLower(text[0]);
         }
 
         private ChecklistItemType DetermineItemType(string answerText)

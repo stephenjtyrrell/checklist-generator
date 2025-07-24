@@ -187,10 +187,10 @@ jobs:
           --registry-login-server ${{ secrets.AZURE_CONTAINER_REGISTRY_NAME }}.azurecr.io \
           --registry-username $ACR_USERNAME \
           --registry-password $ACR_PASSWORD \
-          --ports 5000 \
+          --ports 80 \
           --protocol TCP \
           --restart-policy Always \
-          --environment-variables ASPNETCORE_URLS=http://+:5000 \
+          --environment-variables ASPNETCORE_URLS=http://127.0.0.1:5000 \
           --dns-name-label checklist-generator-$(date +%s) || \
         az container restart --name ${{ env.AZURE_CONTAINER_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
     
@@ -198,8 +198,8 @@ jobs:
       run: |
         FQDN=$(az container show --name ${{ env.AZURE_CONTAINER_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query "ipAddress.fqdn" -o tsv)
         echo "🚀 Application deployed successfully!"
-        echo "🌐 URL: http://$FQDN:5000"
-        echo "DEPLOYMENT_URL=http://$FQDN:5000" >> $GITHUB_ENV
+        echo "🌐 URL: http://$FQDN"
+        echo "DEPLOYMENT_URL=http://$FQDN" >> $GITHUB_ENV
     
     - name: 📝 Deployment Summary
       run: |

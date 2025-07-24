@@ -1,13 +1,21 @@
 # Use the official .NET runtime as base image
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
 WORKDIR /app
-EXPOSE 5000
-EXPOSE 5001
+
+# Install nginx and supervisor
+USER root
+RUN apt-get update && apt-get install -y \
+    nginx \
+    supervisor \
+    && rm -rf /var/lib/apt/lists/*
+
+# Expose standard web ports (80 for HTTP, 443 for HTTPS)
+EXPOSE 80
+EXPOSE 443
 
 # Create non-root user for security
 RUN adduser --disabled-password --gecos '' appuser && \
     chown -R appuser:appuser /app
-USER appuser
 
 # Use the SDK image to build the application
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
@@ -23,5 +31,17 @@ RUN dotnet publish "ChecklistGenerator.csproj" -c Release -o /app/publish /p:Use
 
 FROM base AS final
 WORKDIR /app
+
+# Copy the published application
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "ChecklistGenerator.dll"]
+
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Create startup script
+COPY start-container.sh /start-container.sh
+RUN chmod +x /start-container.sh
+
+# Start both nginx and the .NET application
+ENTRYPOINT ["/start-container.sh"]

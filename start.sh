@@ -2,7 +2,7 @@
 
 echo "🚀 Starting Checklist Generator Application..."
 echo ""
-echo "🌐 Production App (Azure): https://checklist-generator-1753368404.eastus.azurecontainer.io:5000"
+echo "🌐 Production App (Azure): https://checklist-generator-1753368404.eastus.azurecontainer.io"
 echo "🧪 Development Environment: Starting locally..."
 echo ""
 

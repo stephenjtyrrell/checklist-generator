@@ -8,9 +8,15 @@ A .NET 9 web application that converts DOCX documents to interactive SurveyJS fo
 ## 🌐 Live Application
 
 **🚀 Currently deployed and running on Azure:**
-**https://checklist-generator-1753368404.eastus.azurecontainer.io:5000**
+**https://checklist-generator-1753368404.eastus.azurecontainer.io**
 
 *Upload your DOCX files and convert them to interactive SurveyJS forms instantly!*
+
+### 🔗 Custom Domain Ready
+- ✅ **Clean URLs**: No port numbers required
+- ✅ **nginx Reverse Proxy**: Professional setup with security headers
+- ✅ **Custom Domain Support**: Ready for your own domain name
+- 📋 **Setup Guide**: See [CUSTOM_DOMAIN.md](./CUSTOM_DOMAIN.md)
 
 ## ☁️ Azure Deployment (Recommended)
 
@@ -117,6 +123,8 @@ dotnet test --collect:"XPlat Code Coverage"
 
 ---
 
-**🌐 Live Application:** https://checklist-generator-1753368404.eastus.azurecontainer.io:5000
+**🌐 Live Application:** https://checklist-generator-1753368404.eastus.azurecontainer.io
 
 **📋 Azure Setup:** [AZURE_DEPLOYMENT.md](./AZURE_DEPLOYMENT.md)
+
+**🔗 Custom Domain:** [CUSTOM_DOMAIN.md](./CUSTOM_DOMAIN.md)

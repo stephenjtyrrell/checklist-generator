@@ -3,19 +3,37 @@
 A .NET 9 web application that converts DOCX documents to interactive SurveyJS forms.
 
 ![Build Status](https://github.com/stephenjtyrrell/checklist-generator/workflows/Build%20and%20Deploy%20Checklist%20Generator/badge.svg)
-![Codespace Deploy](https://github.com/stephenjtyrrell/checklist-generator/workflows/Codespace%20Auto-Deploy/badge.svg)
+![Azure Deploy](https://github.com/stephenjtyrrell/checklist-generator/workflows/Codespace%20Auto-Deploy/badge.svg)
 
-## 🚀 Deploy to GitHub Codespaces (Recommended)
+## 🌐 Live Application
 
-**Automated deployment with GitHub Actions!**
+**🚀 Currently deployed and running on Azure:**
+**https://checklist-generator-1753368404.eastus.azurecontainer.io:5000**
 
-1. **Push to GitHub**: Changes automatically trigger build and deployment
-2. **Open Codespaces**: Click the green "Code" button → "Codespaces" → "Create codespace"
-3. **Auto-setup**: Codespaces will automatically configure everything
-4. **Start**: Run `./start.sh` or use the terminal to start the app
-5. **Access**: Use the forwarded port URL to access your application
+*Upload your DOCX files and convert them to interactive SurveyJS forms instantly!*
 
-### 🔄 Auto-Updates in Codespace
+## ☁️ Azure Deployment (Recommended)
+
+**Fully automated deployment to Azure Container Instances!**
+
+1. **Automatic**: Push to `main` branch triggers Azure deployment
+2. **Manual**: Use GitHub Actions → "Build and Deploy" → "Deploy to Azure"
+3. **Free Tier**: Runs within Azure's free Container Instances allowance
+4. **Scalable**: Easy to scale up as needed
+
+### 🔧 Setup Azure Deployment
+See [AZURE_DEPLOYMENT.md](./AZURE_DEPLOYMENT.md) for complete setup instructions.
+
+## 🧪 Alternative: GitHub Codespaces Development
+
+For development and testing:
+
+1. **Open Codespaces**: Click "Code" → "Codespaces" → "Create codespace"
+2. **Auto-setup**: Environment configures automatically
+3. **Start**: Run `./start.sh` in the terminal
+4. **Access**: Use the forwarded port URL
+
+### 🔄 Codespace Updates
 ```bash
 ./codespace-update.sh  # Pull latest changes and restart
 ```
@@ -26,8 +44,8 @@ A .NET 9 web application that converts DOCX documents to interactive SurveyJS fo
 - **Excel Conversion**: Automatically converts to Excel format in memory
 - **SurveyJS Output**: Generates interactive forms from document content
 - **Download Support**: Download the converted Excel file
-- **Cloud Ready**: Optimized for GitHub Codespaces and cloud hosting
-- **CI/CD Pipeline**: Automated building, testing, and deployment
+- **Cloud Ready**: Deployed on Azure Container Instances with auto-scaling
+- **CI/CD Pipeline**: Automated building, testing, and Azure deployment
 
 ## 🛠️ Local Development
 
@@ -42,17 +60,18 @@ Visit `http://localhost:5000`
 ## 📁 Project Structure
 
 - `ChecklistGenerator/` - Main .NET application
+- `AZURE_DEPLOYMENT.md` - Azure deployment setup guide
 - `.devcontainer/` - Codespaces configuration
 - `Dockerfile` - Container deployment
-- `start.sh` - Quick start script
+- `start.sh` - Local development script
 
 ## 🌐 Hosting Options
 
-- **GitHub Codespaces** (Free tier: 60 hours/month)
+- **Azure Container Instances** ⭐ **Current deployment** (Free tier available)
+- **GitHub Codespaces** (Development environment - Free: 60 hours/month)
+- **Azure App Service** (Alternative Azure option)
 - **Railway.app** (Easy deployment from GitHub)
 - **Render.com** (Free tier available)
-- **Azure Container Instances**
-- **Google Cloud Run**
 
 ## 📝 Usage
 
@@ -91,10 +110,13 @@ dotnet test --collect:"XPlat Code Coverage"
 
 - ✅ **Core Features**: Document conversion pipeline fully functional
 - ✅ **Testing**: Comprehensive unit test coverage (50+ tests)
-- ✅ **CI/CD**: Automated build, test, and deployment
+- ✅ **CI/CD**: Automated build, test, and Azure deployment
 - ✅ **Documentation**: Complete setup and usage guides
-- ✅ **Deployment**: Ready for GitHub Codespaces and cloud hosting
+- ✅ **Production**: Live on Azure Container Instances
+- ✅ **Free Hosting**: Running within Azure free tier limits
 
 ---
 
-**Ready for instant deployment on GitHub Codespaces!** 🚀
+**🌐 Live Application:** https://checklist-generator-1753368404.eastus.azurecontainer.io:5000
+
+**📋 Azure Setup:** [AZURE_DEPLOYMENT.md](./AZURE_DEPLOYMENT.md)

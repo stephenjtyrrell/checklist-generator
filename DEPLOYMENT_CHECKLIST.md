@@ -1,30 +1,52 @@
-# ✅ GitHub Codespaces Deployment - READY!
+# ✅ Azure Container Instances Deployment - LIVE!
 
-## ✅ Deployment Status - COMPLETE
+## 🌐 **PRODUCTION STATUS: DEPLOYED** 
 
-### **Automated CI/CD Pipeline**
+**Live URL:** https://checklist-generator-1753368404.eastus.azurecontainer.io:5000
+
+### **Automated Azure CI/CD Pipeline**
 - 🔨 **Build & Test**: Automatic .NET 9 build verification on every push
 - 🔍 **Security Scanning**: Vulnerability checks for NuGet packages  
 - 📊 **Performance Monitoring**: Build size analysis and warnings
-- 🐳 **Docker Build**: Container image generation for deployment
-- 📢 **Smart Notifications**: PR comments with deployment instructions
+- 🐳 **Docker Build**: Container image pushed to Azure Container Registry
+- ☁️ **Azure Deploy**: Automatic deployment to Container Instances
+- 📢 **Smart Notifications**: PR comments with deployment status
 
-### **Codespace Auto-Deployment**
-- 🚀 **One-Click Deploy**: Instant Codespace creation with zero config
-- 🔄 **Auto-Updates**: `./codespace-update.sh` for live updates
+### **Azure Infrastructure**
+- 🏗️ **Resource Group**: `checklist-generator-rg` (East US)
+- � **Container Registry**: `checklistgen.azurecr.io`
+- 🌐 **Container Instance**: `checklist-generator` (1 vCPU, 1.5GB RAM)
+- 💰 **Cost**: FREE within Azure's Container Instance allowance
+- 🔄 **Auto-Restart**: Always restart policy for high availability
+
+### **Development Environment**
+- 🧪 **Codespaces**: Available for development and testing
+- 🔄 **Auto-Updates**: `./codespace-update.sh` for development updates
 - 📡 **Webhook Support**: `./webhook-deploy.sh` for external triggers
-- 🛠️ **Enhanced Devcontainer**: Post-create and post-start commands
 
-## Deployment Steps
+## Azure Deployment Steps
 
-1. **Push to GitHub**:
+1. **Automatic Deployment**:
    ```bash
    git add .
-   git commit -m "Ready for Codespaces deployment"
+   git commit -m "Deploy to Azure"
    git push origin main
    ```
+   
+2. **Manual Deployment**:
+   - Go to GitHub repository → Actions
+   - Click "Build and Deploy Checklist Generator"
+   - Click "Run workflow"
+   - Check "Deploy to Azure Container Instances"
+   - Click "Run workflow"
 
-2. **Create Codespace**:
+3. **Access Application**:
+   - **Production:** https://checklist-generator-1753368404.eastus.azurecontainer.io:5000
+   - **Development:** Create GitHub Codespace
+
+## Development Environment (Codespaces)
+
+1. **Create Codespace**:
    - Go to your GitHub repository
    - Click green "Code" button
    - Select "Codespaces" tab

@@ -1,33 +1,34 @@
-# GitHub Actions & Codespace Auto-Deployment
+# GitHub Actions & Azure Auto-Deployment
 
-This repository is configured with GitHub Actions for continuous integration and automated deployment to GitHub Codespaces.
+This repository is configured with GitHub Actions for continuous integration and automated deployment to Azure Container Instances.
 
 ## 🔄 Automated Workflows
 
 ### 1. **Main Build & Deploy** (`.github/workflows/build-and-deploy.yml`)
 
 **Triggers:**
-- Push to `main`, `feature/*`, or `develop` branches  
-- Pull requests to `main`
-- Manual dispatch with Codespace deployment option
+- Push to `main` branch → **Automatic Azure deployment**
+- Push to `feature/*` or `develop` branches → Build and test only  
+- Pull requests to `main` → Build and test with deployment preview
+- Manual dispatch with Azure deployment option
 
 **Features:**
-- ✅ .NET 9 build and test
-- 🐳 Docker image build
+- ✅ .NET 9 build and test (50+ unit tests)
+- 🐳 Docker image build and push to Azure Container Registry
+- ☁️ **Azure Container Instances deployment**
 - 🔍 Security vulnerability scanning
 - 📊 Performance checks (build size analysis)
-- 📢 Deployment notifications
+- 📢 Deployment notifications with live URLs
 - 📦 Build artifact uploads
 
-### 2. **Codespace Auto-Deploy** (`.github/workflows/codespace-deploy.yml`)
+### 2. **Codespace Development** (`.github/workflows/codespace-deploy.yml`)
 
 **Triggers:**
-- Push to `main` branch
-- Manual dispatch
+- Manual dispatch for development environment
 
 **Features:**
-- ✅ Quick build verification
-- 🚀 Codespace deployment readiness check
+- ✅ Quick build verification for development
+- 🧪 Codespace readiness check for testing
 - 📋 Deployment instruction generation
 
 ## 🛠️ Deployment Scripts

@@ -2,6 +2,12 @@
 
 A web application that converts Word document (.docx) checklists into SurveyJS JSON format with streamlined document processing.
 
+## 🌐 Live Application
+
+**Production App (Azure):** https://checklist-generator-1753368404.eastus.azurecontainer.io:5000
+
+*Upload your DOCX files and convert them to interactive SurveyJS forms instantly!*
+
 ## Features
 
 - **DOCX Document Support**: Upload modern .docx files for processing
@@ -24,10 +30,11 @@ A web application that converts Word document (.docx) checklists into SurveyJS J
   - Question type inference
   - Table data extraction
   - Progress tracking and user feedback
+- **Cloud Deployment**: Hosted on Azure Container Instances with automatic scaling
 
 ## Prerequisites
 
-- .NET 9.0 or later
+- .NET 9.0 or later (for local development)
 - Word documents in .docx format
 
 ## Installation

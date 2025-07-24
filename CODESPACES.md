@@ -1,8 +1,14 @@
-# Checklist Generator - GitHub Codespaces Deployment
+# Checklist Generator - GitHub Codespaces Development
 
-This application is ready for deployment on GitHub Codespaces with zero configuration!
+GitHub Codespaces provides an excellent development environment for this application. The live production version is running on Azure Container Instances.
 
-## 🚀 Quick Start in Codespaces
+## 🌐 Live Application (Azure)
+
+**Production App:** https://checklist-generator-1753368404.eastus.azurecontainer.io:5000
+
+*For development and testing, use Codespaces as described below.*
+
+## 🧪 Development with Codespaces
 
 1. **Open in Codespaces**:
    - Click the green "Code" button on your GitHub repository
@@ -35,6 +41,7 @@ This application is ready for deployment on GitHub Codespaces with zero configur
 - **Port Forwarding**: Automatic HTTPS/HTTP port forwarding
 - **VS Code Extensions**: Pre-configured with C# and .NET tools
 - **Terminal Access**: Full terminal access for debugging
+- **Live Testing**: Test changes before Azure deployment
 
 ## 📝 File Structure
 
@@ -42,11 +49,17 @@ This application is ready for deployment on GitHub Codespaces with zero configur
 .devcontainer/
   └── devcontainer.json    # Codespaces configuration
 ChecklistGenerator/        # Main application
+AZURE_DEPLOYMENT.md       # Azure deployment guide
 Dockerfile                # Container configuration
-start.sh                  # Quick start script
+start.sh                  # Development start script
 ```
 
-## 🌐 Public Access
+## 🚀 Deployment Workflow
+
+1. **Develop** in Codespaces
+2. **Test** locally in the Codespaces environment
+3. **Push** to main branch
+4. **Auto-deploy** to Azure via GitHub Actions
 
 To make your Codespace publicly accessible:
 1. Go to the "Ports" tab in VS Code

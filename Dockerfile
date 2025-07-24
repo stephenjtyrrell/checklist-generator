@@ -10,12 +10,13 @@ RUN apt-get update && apt-get install -y \
     openssl \
     && rm -rf /var/lib/apt/lists/*
 
-# Generate self-signed SSL certificate
+# Generate self-signed SSL certificate with domain name
 RUN mkdir -p /etc/ssl/private && \
     openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout /etc/ssl/private/nginx-selfsigned.key \
     -out /etc/ssl/certs/nginx-selfsigned.crt \
-    -subj "/C=US/ST=State/L=City/O=Organization/OU=OrgUnit/CN=localhost"
+    -subj "/C=IE/ST=Ireland/L=Dublin/O=ChecklistGenerator/OU=WebApp/CN=checklist.stephentyrrell.ie" \
+    -addext "subjectAltName=DNS:checklist.stephentyrrell.ie,DNS:localhost,DNS:*.eastus.azurecontainer.io"
 
 # Expose standard web ports (80 for HTTP, 443 for HTTPS)
 EXPOSE 80

@@ -493,6 +493,3 @@ jspm_packages/
 # OS generated files
 Thumbs.db
 ehthumbs.db
-
-# Custom documentation with sensitive info
-CUSTOM_DOMAIN.md

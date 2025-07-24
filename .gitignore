@@ -409,6 +409,10 @@ temp/
 *.docx
 *.doc
 
+# Exception: Allow sample documents
+!ChecklistGenerator/wwwroot/samples/*.docx
+!ChecklistGenerator/wwwroot/samples/*.doc
+
 # Environment variables
 .env
 .env.local

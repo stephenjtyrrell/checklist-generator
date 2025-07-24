@@ -12,6 +12,7 @@ namespace ChecklistGenerator.Controllers
         private readonly ExcelProcessor _excelProcessor;
         private readonly SurveyJSConverter _surveyConverter;
         private readonly ILogger<ChecklistController> _logger;
+        private readonly IWebHostEnvironment _webHostEnvironment;
         
         // In-memory storage for Excel files (in production, consider using a cache like Redis)
         private static readonly Dictionary<string, (byte[] Data, string FileName)> _excelCache = new();
@@ -20,12 +21,14 @@ namespace ChecklistGenerator.Controllers
             DocxToExcelConverter docxToExcelConverter,
             ExcelProcessor excelProcessor,
             SurveyJSConverter surveyConverter,
-            ILogger<ChecklistController> logger)
+            ILogger<ChecklistController> logger,
+            IWebHostEnvironment webHostEnvironment)
         {
             _docxToExcelConverter = docxToExcelConverter;
             _excelProcessor = excelProcessor;
             _surveyConverter = surveyConverter;
             _logger = logger;
+            _webHostEnvironment = webHostEnvironment;
         }
 
         [HttpPost("upload")]
@@ -192,6 +195,123 @@ namespace ChecklistGenerator.Controllers
                 Success = true,
                 SurveyJS = surveyJson
             });
+        }
+
+        [HttpGet("samples")]
+        public IActionResult GetSampleDocuments()
+        {
+            try
+            {
+                var samplesPath = Path.Combine(_webHostEnvironment.WebRootPath, "samples");
+                
+                if (!Directory.Exists(samplesPath))
+                {
+                    return Ok(new
+                    {
+                        Success = true,
+                        Samples = new List<object>()
+                    });
+                }
+
+                var sampleFiles = Directory.GetFiles(samplesPath, "*.docx")
+                    .Select(filePath =>
+                    {
+                        var fileName = Path.GetFileName(filePath);
+                        var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
+                        
+                        // Generate display info from filename
+                        var displayInfo = GenerateDisplayInfo(fileNameWithoutExtension);
+                        
+                        return new
+                        {
+                            FileName = fileName,
+                            DisplayName = displayInfo.DisplayName,
+                            Description = displayInfo.Description,
+                            Icon = displayInfo.Icon,
+                            DownloadUrl = $"/samples/{fileName}"
+                        };
+                    })
+                    .OrderBy(f => f.DisplayName)
+                    .ToList();
+
+                return Ok(new
+                {
+                    Success = true,
+                    Samples = sampleFiles
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving sample documents");
+                return StatusCode(500, new
+                {
+                    Success = false,
+                    Error = ex.Message
+                });
+            }
+        }
+
+        private (string DisplayName, string Description, string Icon) GenerateDisplayInfo(string fileName)
+        {
+            // Generate display information based on filename patterns
+            var lowerFileName = fileName.ToLower();
+            
+            if (lowerFileName.Contains("ucits"))
+            {
+                // Check for section numbers
+                var sectionMatch = System.Text.RegularExpressions.Regex.Match(fileName, @"section(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (sectionMatch.Success)
+                {
+                    return (
+                        $"� UCITS Section {sectionMatch.Groups[1].Value}",
+                        $"UCITS application section {sectionMatch.Groups[1].Value} document",
+                        "�"
+                    );
+                }
+                else
+                {
+                    return (
+                        "� UCITS Application",
+                        "Complex application form with sections",
+                        "�"
+                    );
+                }
+            }
+            else if (lowerFileName.Contains("fund") && lowerFileName.Contains("regulation"))
+            {
+                return (
+                    "💰 Fund Regulation",
+                    "Money market fund regulation checklist",
+                    "💰"
+                );
+            }
+            else if (lowerFileName.Contains("money") && lowerFileName.Contains("market"))
+            {
+                return (
+                    "� Money Market Fund",
+                    "Money market fund regulation checklist",
+                    "�"
+                );
+            }
+            else if (lowerFileName.Contains("basic") || lowerFileName.Contains("simple"))
+            {
+                return (
+                    "� Basic Checklist",
+                    "Simple checklist format for testing",
+                    "�"
+                );
+            }
+            
+            // Default fallback
+            var displayName = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(
+                fileName.Replace("-", " ").Replace("_", " ")
+            );
+            
+            return (
+                $"📄 {displayName}",
+                "Sample document for testing the converter",
+                "📄"
+            );
         }
 
         [HttpPost("saveResults")]

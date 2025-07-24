@@ -23,6 +23,9 @@
             } else {
                 console.error('SurveyJS failed to load');
             }
+            
+            // Load sample documents
+            loadSampleDocuments();
         });
     </script>
     <style>
@@ -190,6 +193,16 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.15);
         }
         
+        .loading-samples .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
         .sample-item h4 {
             margin: 10px 0;
             color: #0056b3;
@@ -304,27 +317,10 @@
         <div class="info-section">
             <h3>📄 Sample Documents</h3>
             <p>Don't have a Word document ready? Download one of our sample documents to test the converter:</p>
-            <div class="sample-downloads">
-                <div class="sample-item">
-                    <h4>📋 Basic Checklist</h4>
-                    <p>Simple checklist format for testing</p>
-                    <a href="/samples/basic-checklist-sample.docx" download="basic-checklist-sample.docx" class="download-btn">
-                        ⬇️ Download
-                    </a>
-                </div>
-                <div class="sample-item">
-                    <h4>💰 Fund Regulation</h4>
-                    <p>Money market fund regulation checklist</p>
-                    <a href="/samples/money-market-fund-regulation-sample.docx" download="money-market-fund-regulation-sample.docx" class="download-btn">
-                        ⬇️ Download
-                    </a>
-                </div>
-                <div class="sample-item">
-                    <h4>📋 UCITS Application</h4>
-                    <p>Complex application form with sections</p>
-                    <a href="/samples/ucits-application-form-sample.docx" download="ucits-application-form-sample.docx" class="download-btn">
-                        ⬇️ Download
-                    </a>
+            <div class="sample-downloads" id="sampleDownloads">
+                <div class="loading-samples" style="text-align: center; padding: 20px;">
+                    <div class="spinner" style="width: 30px; height: 30px; margin: 0 auto 10px;"></div>
+                    <p>Loading sample documents...</p>
                 </div>
             </div>
             <p style="margin-top: 20px; font-size: 14px; color: #666; text-align: center;">
@@ -394,6 +390,53 @@
         let currentJsonOutput = '';
         let currentSurvey = null;
         let surveyResults = {};
+
+        async function loadSampleDocuments() {
+            try {
+                const response = await fetch('/api/checklist/samples');
+                const result = await response.json();
+                
+                const sampleDownloads = document.getElementById('sampleDownloads');
+                
+                if (result.success && result.samples && result.samples.length > 0) {
+                    // Clear loading message
+                    sampleDownloads.innerHTML = '';
+                    
+                    // Create sample items
+                    result.samples.forEach(sample => {
+                        const sampleItem = document.createElement('div');
+                        sampleItem.className = 'sample-item';
+                        
+                        sampleItem.innerHTML = `
+                            <h4>${sample.displayName}</h4>
+                            <p>${sample.description}</p>
+                            <a href="${sample.downloadUrl}" download="${sample.fileName}" class="download-btn">
+                                ⬇️ Download
+                            </a>
+                        `;
+                        
+                        sampleDownloads.appendChild(sampleItem);
+                    });
+                } else {
+                    // No samples found
+                    sampleDownloads.innerHTML = `
+                        <div style="text-align: center; padding: 20px; color: #666;">
+                            <p>📁 No sample documents found</p>
+                            <p style="font-size: 14px;">Add .docx files to the /samples folder to see them here.</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading sample documents:', error);
+                const sampleDownloads = document.getElementById('sampleDownloads');
+                sampleDownloads.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #721c24;">
+                        <p>❌ Error loading sample documents</p>
+                        <p style="font-size: 14px;">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
 
         async function uploadFile() {
             const fileInput = document.getElementById('fileInput');

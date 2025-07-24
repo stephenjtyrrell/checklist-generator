@@ -223,13 +223,13 @@ az ad sp create-for-rbac --name "checklist-generator-github" \
 # Build and push image
 az acr build --registry YOUR_REGISTRY_NAME --image checklist-generator .
 
-# Deploy container with stable DNS name
+# Deploy container
 az container create \
   --resource-group checklist-generator-rg \
   --name checklist-generator \
   --image YOUR_REGISTRY.azurecr.io/checklist-generator:latest \
   --ports 80 443 \
-  --dns-name-label checklist-generator-stable
+  --dns-name-label checklist-generator-$(date +%s)
 ```
 
 ---
@@ -240,23 +240,11 @@ az container create \
 
 The application is configured with a professional custom domain using DNS CNAME records.
 
-### Stable DNS Configuration (Updated 2024)
-The container now uses a **stable DNS label** that doesn't change between deployments:
-
+### DNS Configuration
 ```
 Type: CNAME
 Name: checklist
-Value: checklist-generator-stable.eastus.azurecontainer.io
-TTL: 300
-```
-
-⚠️ **Action Required**: Update your DNS CNAME record to point to the new stable FQDN above.
-
-### Legacy DNS (Will be deprecated)
-```
-Type: CNAME
-Name: checklist  
-Value: checklist-generator-1753371092.eastus.azurecontainer.io (timestamp-based - changes on redeploy)
+Value: checklist-generator-1753371092.eastus.azurecontainer.io
 TTL: 300
 ```
 

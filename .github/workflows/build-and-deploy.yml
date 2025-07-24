@@ -174,9 +174,17 @@ jobs:
         ACR_USERNAME=$(az acr credential show --name ${{ secrets.AZURE_CONTAINER_REGISTRY_NAME }} --query "username" -o tsv)
         ACR_PASSWORD=$(az acr credential show --name ${{ secrets.AZURE_CONTAINER_REGISTRY_NAME }} --query "passwords[0].value" -o tsv)
         
-        # Deploy or update container instance
-        DEPLOYMENT_NAME="${{ env.AZURE_CONTAINER_NAME }}-$(date +%s)"
+        # Deploy or update container instance with stable DNS name
+        # Try to delete existing container first, then create new one with same DNS name
+        echo "Checking for existing container..."
+        if az container show --name ${{ env.AZURE_CONTAINER_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} >/dev/null 2>&1; then
+          echo "Deleting existing container to ensure clean deployment..."
+          az container delete --name ${{ env.AZURE_CONTAINER_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --yes
+          echo "Waiting for container deletion to complete..."
+          sleep 30
+        fi
         
+        echo "Creating container with stable DNS name..."
         az container create \
           --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
           --name ${{ env.AZURE_CONTAINER_NAME }} \
@@ -191,8 +199,7 @@ jobs:
           --protocol TCP \
           --restart-policy Always \
           --environment-variables ASPNETCORE_URLS=http://127.0.0.1:5000 \
-          --dns-name-label checklist-generator-$(date +%s) || \
-        az container restart --name ${{ env.AZURE_CONTAINER_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
+          --dns-name-label checklist-generator-stable
     
     - name: 🌐 Get deployment URL
       run: |

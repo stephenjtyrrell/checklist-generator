@@ -8,20 +8,23 @@ namespace ChecklistGenerator.Controllers
     [Route("api/[controller]")]
     public class ChecklistController : ControllerBase
     {
-        private readonly WordDocumentProcessor _wordProcessor;
+        private readonly DocxToExcelConverter _docxToExcelConverter;
+        private readonly ExcelProcessor _excelProcessor;
         private readonly SurveyJSConverter _surveyConverter;
-        private readonly DocumentConverterService _documentConverter;
         private readonly ILogger<ChecklistController> _logger;
+        
+        // In-memory storage for Excel files (in production, consider using a cache like Redis)
+        private static readonly Dictionary<string, (byte[] Data, string FileName)> _excelCache = new();
 
         public ChecklistController(
-            WordDocumentProcessor wordProcessor,
+            DocxToExcelConverter docxToExcelConverter,
+            ExcelProcessor excelProcessor,
             SurveyJSConverter surveyConverter,
-            DocumentConverterService documentConverter,
             ILogger<ChecklistController> logger)
         {
-            _wordProcessor = wordProcessor;
+            _docxToExcelConverter = docxToExcelConverter;
+            _excelProcessor = excelProcessor;
             _surveyConverter = surveyConverter;
-            _documentConverter = documentConverter;
             _logger = logger;
         }
 
@@ -35,76 +38,72 @@ namespace ChecklistGenerator.Controllers
                     return BadRequest("No file uploaded");
                 }
 
-                if (!file.FileName.EndsWith(".docx", StringComparison.OrdinalIgnoreCase) &&
-                    !file.FileName.EndsWith(".doc", StringComparison.OrdinalIgnoreCase))
+                if (!file.FileName.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))
                 {
-                    return BadRequest("Only .doc and .docx files are supported");
+                    return BadRequest("Only .docx files are supported");
                 }
 
                 _logger.LogInformation($"Processing file: {file.FileName}");
 
                 List<ChecklistItem> checklistItems = new List<ChecklistItem>();
-                bool wasConverted = false;
+                byte[] excelBytes = null;
+                string downloadFileName = string.Empty;
                 
                 try
                 {
                     using (var stream = file.OpenReadStream())
                     {
-                        Stream processingStream = stream;
-                        
-                        // Convert .doc to .docx if needed
-                        if (file.FileName.EndsWith(".doc", StringComparison.OrdinalIgnoreCase))
+                        // Convert DOCX to Excel
+                        _logger.LogInformation("Converting DOCX to Excel...");
+                        Stream excelStream;
+                        try
                         {
-                            _logger.LogInformation($"Converting .doc file to .docx format: {file.FileName}");
-                            try
-                            {
-                                processingStream = await _documentConverter.ConvertDocToDocxAsync(stream, file.FileName);
-                                wasConverted = true;
-                                _logger.LogInformation("Conversion successful");
-                            }
-                            catch (Exception conversionEx)
-                            {
-                                _logger.LogWarning($"Doc conversion failed, will try direct processing: {conversionEx.Message}");
-                                processingStream = stream;
-                                stream.Position = 0; // Reset for direct processing
-                            }
+                            var conversionResult = await _docxToExcelConverter.ConvertDocxToExcelAsync(stream, file.FileName);
+                            excelStream = conversionResult.ExcelStream;
+                            excelBytes = conversionResult.ExcelBytes;
+                            downloadFileName = conversionResult.FileName;
+                            _logger.LogInformation($"DOCX to Excel conversion successful. Download filename: {downloadFileName}");
+                        }
+                        catch (Exception conversionEx)
+                        {
+                            _logger.LogError(conversionEx, "Failed to convert DOCX to Excel");
+                            return BadRequest($"Failed to convert DOCX to Excel: {conversionEx.Message}");
                         }
                         
-                        // Process the document (either original or converted)
-                        checklistItems = await _wordProcessor.ProcessWordDocumentAsync(processingStream, file.FileName);
-                        
-                        // Clean up converted stream if it was created
-                        if (wasConverted && processingStream != stream)
+                        // Process the Excel file to extract checklist items
+                        _logger.LogInformation("Processing Excel file to extract checklist items...");
+                        try
                         {
-                            processingStream.Dispose();
+                            checklistItems = await _excelProcessor.ProcessExcelAsync(excelStream, file.FileName);
+                            _logger.LogInformation($"Extracted {checklistItems.Count} checklist items from Excel");
+                        }
+                        catch (Exception processingEx)
+                        {
+                            _logger.LogError(processingEx, "Failed to process Excel file");
+                            return BadRequest($"Failed to process Excel file: {processingEx.Message}");
+                        }
+                        finally
+                        {
+                            excelStream?.Dispose();
                         }
                     }
                 }
                 catch (Exception processingEx)
                 {
-                    _logger.LogWarning($"Word processing failed, creating fallback response: {processingEx.Message}");
-                    
-                    // Create a fallback response with the error information
+                    _logger.LogError(processingEx, "Error during file processing");
+                    return StatusCode(500, $"Error processing file: {processingEx.Message}");
+                }
+
+                if (checklistItems.Count == 0)
+                {
                     checklistItems.Add(new ChecklistItem
                     {
-                        Id = "processing_failed",
-                        Text = "Failed to process this document",
+                        Id = "no_items_found",
+                        Text = "No checklist items were found in this document",
                         Type = ChecklistItemType.Comment,
                         IsRequired = false,
-                        Description = $"Error: {processingEx.Message}. This may be due to file corruption, password protection, or unsupported formatting."
+                        Description = "The document may not contain recognizable checklist patterns, or may need manual review."
                     });
-
-                    if (file.FileName.EndsWith(".doc", StringComparison.OrdinalIgnoreCase))
-                    {
-                        checklistItems.Add(new ChecklistItem
-                        {
-                            Id = "doc_format_suggestion",
-                            Text = "Consider converting to .docx format",
-                            Type = ChecklistItemType.Comment,
-                            IsRequired = false,
-                            Description = "Legacy .doc files have limited support. Converting to .docx format typically resolves compatibility issues."
-                        });
-                    }
                 }
 
                 _logger.LogInformation($"Extracted {checklistItems.Count} checklist items");
@@ -118,21 +117,32 @@ namespace ChecklistGenerator.Controllers
                     item.Id.Contains("failed") || 
                     item.Id.Contains("limitation"));
 
+                // Store Excel data in memory for potential download
+                var downloadId = Guid.NewGuid().ToString();
+                _excelCache[downloadId] = (excelBytes, downloadFileName);
+                
+                // Clean up old entries (keep only the last 10)
+                if (_excelCache.Count > 10)
+                {
+                    var oldestKeys = _excelCache.Keys.Take(_excelCache.Count - 10).ToList();
+                    foreach (var key in oldestKeys)
+                    {
+                        _excelCache.Remove(key);
+                    }
+                }
+
                 return Ok(new
                 {
                     Success = true,
                     FileName = file.FileName,
                     ItemCount = checklistItems.Count,
                     SurveyJS = surveyJson,
+                    ExcelDownloadId = downloadId,
+                    ExcelFileName = downloadFileName,
                     Message = hasProcessingIssues 
                         ? "Document processed with some limitations. See generated items for details."
-                        : wasConverted
-                            ? "Successfully converted .doc to .docx format and processed the document."
-                            : file.FileName.EndsWith(".doc", StringComparison.OrdinalIgnoreCase) 
-                                ? "Processed .doc file with basic text extraction. For better results, consider converting to .docx format."
-                                : "Successfully processed document.",
-                    HasIssues = hasProcessingIssues,
-                    WasConverted = wasConverted
+                        : "Successfully processed document using DOCX to Excel conversion.",
+                    HasIssues = hasProcessingIssues
                 });
             }
             catch (Exception ex)
@@ -214,6 +224,31 @@ namespace ChecklistGenerator.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error saving survey results");
+                return StatusCode(500, new
+                {
+                    Success = false,
+                    Error = ex.Message
+                });
+            }
+        }
+
+        [HttpGet("downloadExcel/{downloadId}")]
+        public IActionResult DownloadExcel(string downloadId)
+        {
+            try
+            {
+                if (!_excelCache.TryGetValue(downloadId, out var excelData))
+                {
+                    return NotFound("Excel file not found or has expired");
+                }
+
+                _logger.LogInformation($"Downloading Excel file: {excelData.FileName}");
+                
+                return File(excelData.Data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", excelData.FileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error downloading Excel file");
                 return StatusCode(500, new
                 {
                     Success = false,

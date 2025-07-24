@@ -1,23 +1,18 @@
 # Checklist Generator - Word to SurveyJS Converter
 
-A .4. **Review Results**: 
-   - View the generated SurveyJS JSON output
-   - See processing status and any warnings or notifications
-5. **Preview Survey**: Click "Preview Survey Form" to see an interactive preview of your survey
-6. **Test Survey**: Complete the survey form to test functionality and user experience
-7. **Export Results**: Save survey responses and export them for analysis
-8. **Use JSON**: Copy the generated JSON to use in your SurveyJS applicationsweb application that converts Word document checklists into SurveyJS JSON format with automatic legacy document conversion support.
+A web application that converts Word document (.docx) checklists into SurveyJS JSON format with streamlined document processing.
 
 ## Features
 
-- **Universal Word Document Support**: Upload both legacy .doc and modern .docx files
-- **Automatic Format Conversion**: Legacy .doc files are automatically converted to .docx format for processing
+- **DOCX Document Support**: Upload modern .docx files for processing
 - **Intelligent Content Extraction**: Automatically extract checklist items and questions from complex documents
 - **SurveyJS JSON Generation**: Convert extracted content to industry-standard SurveyJS format
 - **Interactive Survey Preview**: Real-time preview of generated surveys using actual SurveyJS rendering
 - **Web-based Interface**: User-friendly drag-and-drop interface with real-time feedback
 - **Survey Response Testing**: Complete and test surveys directly in the application
 - **Response Export**: Save and export survey responses in JSON format
+- **In-Memory Processing**: Files are processed in memory without local storage, providing secure and efficient processing
+- **Optional Excel Download**: Users can optionally download the generated Excel file for reference
 - **Comprehensive Question Types**:
   - Text input fields
   - Yes/No (Boolean) questions
@@ -33,7 +28,7 @@ A .4. **Review Results**:
 ## Prerequisites
 
 - .NET 9.0 or later
-- Word documents in .doc or .docx format (both legacy and modern formats supported)
+- Word documents in .docx format
 
 ## Installation
 
@@ -53,28 +48,29 @@ dotnet run
 
 1. **Start the Application**: Open the web application in your browser
 2. **Upload Document**: 
-   - Click "Choose File" or drag and drop a Word document (.doc or .docx)
+   - Click "Choose File" or drag and drop a Word document (.docx)
    - The application will automatically detect the file format
-3. **Automatic Processing**: 
-   - Legacy .doc files are automatically converted to .docx format
-   - Conversion status is displayed with progress feedback
-4. **Content Extraction**: Click "Convert to SurveyJS" to process the document
-5. **Review Results**: 
+3. **Content Extraction**: Click "Convert to SurveyJS" to process the document
+4. **Review Results**: 
    - View the generated SurveyJS JSON output
    - See processing status and any warnings or notifications
-6. **Use JSON**: Copy the generated JSON to use in your SurveyJS applications
+5. **Preview Survey**: Click "Preview Survey Form" to see an interactive preview of your survey
+6. **Test Survey**: Complete the survey form to test functionality and user experience
+7. **Export Results**: Save survey responses and export them for analysis
+8. **Use JSON**: Copy the generated JSON to use in your SurveyJS applications
 
 ## Document Processing Workflow
 
 The application uses a sophisticated multi-stage processing workflow:
 
-### Stage 1: Format Detection and Conversion
-- **Legacy .doc files**: Automatically converted to .docx using text extraction and OpenXML reconstruction
-- **Modern .docx files**: Processed directly without conversion
-- **Conversion feedback**: Real-time status updates and warnings for conversion issues
+### Stage 1: DOCX to Excel Conversion
+- **DOCX Processing**: Direct processing of modern .docx files
+- **In-Memory Excel Generation**: Conversion to structured Excel format for better data extraction
+- **Format Validation**: Ensures file integrity and proper structure
+- **Optional Download**: Users can optionally download the generated Excel file
 
 ### Stage 2: Content Analysis
-The application intelligently analyzes Word documents for:
+The application intelligently analyzes Excel data extracted from Word documents for:
 - **Question Detection**: Paragraphs containing questions (text ending with ?, starting with "please", etc.)
 - **Table Processing**: Tables with question/answer pairs and structured data
 - **Form Elements**: Checkboxes, form fields, and interactive elements
@@ -94,20 +90,30 @@ Upload and convert a Word document to SurveyJS format with automatic format dete
 
 **Request:** 
 - Content-Type: multipart/form-data
-- Body: Word document file (.doc or .docx)
+- Body: Word document file (.docx)
 
 **Response:** 
 ```json
 {
   "success": true,
-  "message": "Document processed successfully",
-  "conversionPerformed": true,  // true if .doc was converted to .docx
-  "warnings": ["Any processing warnings"],
-  "data": {
-    // SurveyJS JSON format
-  }
+  "fileName": "document.docx",
+  "itemCount": 5,
+  "surveyJS": { /* SurveyJS JSON format */ },
+  "excelDownloadId": "guid-string",
+  "excelFileName": "document_20250724_103254.xlsx",
+  "message": "Successfully processed document using DOCX to Excel conversion.",
+  "hasIssues": false
 }
 ```
+
+### GET /api/checklist/downloadExcel/{downloadId}
+Download the generated Excel file using the download ID from the upload response.
+
+**Parameters:**
+- `downloadId`: The download ID returned from the upload response
+
+**Response:** 
+- Excel file download (.xlsx format)
 
 **Error Response:**
 ```json
@@ -182,17 +188,6 @@ The application analyzes Word documents for:
 - Numbered or lettered option lists
 - Required field indicators (*, "required", "mandatory")
 
-## Legacy Document Support
-
-The application includes robust support for legacy .doc files:
-
-- **Automatic Detection**: File format is automatically detected upon upload
-- **Text Extraction**: Content is extracted from legacy .doc files using advanced parsing
-- **Format Conversion**: Extracted content is reconstructed into modern .docx format
-- **Preservation**: Original document structure and formatting are maintained where possible
-- **Feedback**: Users receive clear status updates during the conversion process
-- **Error Handling**: Graceful handling of conversion issues with informative error messages
-
 ## SurveyJS Output Format
 
 The generated JSON follows the SurveyJS schema and includes:
@@ -254,14 +249,14 @@ The application is built with:
 The application follows a clean, service-oriented architecture:
 
 ### Core Services
-- **DocumentConverterService**: Handles .doc to .docx conversion with text extraction
-- **WordDocumentProcessor**: Processes .docx files and extracts structured content
+- **DocxToExcelConverter**: Converts .docx files to Excel format for structured processing
+- **ExcelProcessor**: Processes Excel files and extracts structured content to identify checklist items
 - **SurveyJSConverter**: Converts extracted content to SurveyJS JSON format
 
 ### Processing Pipeline
 1. **File Upload & Validation**: Secure file handling with format detection
-2. **Format Conversion**: Automatic .doc to .docx conversion when needed
-3. **Content Extraction**: Intelligent parsing of document structure and content
+2. **Document to Excel Conversion**: Convert DOCX files to Excel format for structured data extraction
+3. **Content Analysis**: Intelligent parsing of Excel data to extract questions and form elements
 4. **Data Transformation**: Conversion to SurveyJS-compatible format
 5. **Response Generation**: JSON output with comprehensive status information
 
@@ -275,8 +270,8 @@ ChecklistGenerator/
 │   ├── ChecklistItem.cs             # Data models for extracted content
 │   └── SurveyJSForm.cs              # SurveyJS schema models
 ├── Services/
-│   ├── DocumentConverterService.cs  # .doc to .docx conversion service
-│   ├── WordDocumentProcessor.cs     # .docx document parsing and extraction
+│   ├── DocxToExcelConverter.cs      # .docx to Excel conversion service
+│   ├── ExcelProcessor.cs            # Excel file parsing and content extraction
 │   └── SurveyJSConverter.cs         # JSON conversion and formatting
 ├── wwwroot/
 │   └── index.html                   # Web interface with drag-and-drop support

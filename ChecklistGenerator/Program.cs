@@ -5,9 +5,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
 builder.Services.AddControllers();
-builder.Services.AddScoped<WordDocumentProcessor>();
+builder.Services.AddScoped<DocxToExcelConverter>();
+builder.Services.AddScoped<ExcelProcessor>();
 builder.Services.AddScoped<SurveyJSConverter>();
-builder.Services.AddScoped<DocumentConverterService>();
 
 // Configure file upload limits
 builder.Services.Configure<IISServerOptions>(options =>

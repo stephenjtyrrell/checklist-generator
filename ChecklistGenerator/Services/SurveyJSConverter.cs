@@ -111,12 +111,13 @@ namespace ChecklistGenerator.Services
             var cleaned = Regex.Replace(text, @"\s+", " ");
             cleaned = cleaned.Trim();
             
-            // Only remove numbering at the very start if it's clearly separate from content
-            // Be more conservative - only remove if followed by space and not part of the content
-            cleaned = Regex.Replace(cleaned, @"^(\d+\.)\s+", "");
-            cleaned = Regex.Replace(cleaned, @"^(\d+\))\s+", "");
-            cleaned = Regex.Replace(cleaned, @"^([a-zA-Z]\.)\s+", "");
-            cleaned = Regex.Replace(cleaned, @"^([a-zA-Z]\))\s+", "");
+            // Only remove simple single-level numbering at the very start if it's clearly separate from content
+            // Be more conservative - only remove single digits/letters followed by period/parenthesis and space
+            // Do NOT remove complex numbering like "3.1" or multi-level numbering
+            cleaned = Regex.Replace(cleaned, @"^(\d{1}\.)\s+(?![0-9])", "");  // Only single digit followed by period, not followed by another digit
+            cleaned = Regex.Replace(cleaned, @"^(\d{1}\))\s+", "");           // Single digit followed by parenthesis
+            cleaned = Regex.Replace(cleaned, @"^([a-zA-Z]\.)\s+", "");        // Single letter followed by period
+            cleaned = Regex.Replace(cleaned, @"^([a-zA-Z]\))\s+", "");        // Single letter followed by parenthesis
             
             // Only remove bullets if they're clearly formatting, not content
             cleaned = Regex.Replace(cleaned, @"^[•\-\*○●▪▫]\s+", "");

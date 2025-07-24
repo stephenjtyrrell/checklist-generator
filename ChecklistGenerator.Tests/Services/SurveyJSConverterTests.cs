@@ -210,5 +210,94 @@ namespace ChecklistGenerator.Tests.Services
             var jsonDocument = JsonDocument.Parse(result);
             jsonDocument.RootElement.GetProperty("elements").GetArrayLength().Should().Be(1);
         }
+
+        [Fact]
+        public void ConvertToSurveyJS_ComplexNumbering_ShouldPreserveNumbering()
+        {
+            // Arrange
+            var checklistItems = new List<ChecklistItem>
+            {
+                new ChecklistItem
+                {
+                    Id = "test1",
+                    Text = "3.1 General Provide that:",
+                    Type = ChecklistItemType.Text
+                },
+                new ChecklistItem
+                {
+                    Id = "test2",
+                    Text = "3.1 What is your name?",
+                    Type = ChecklistItemType.Text
+                },
+                new ChecklistItem
+                {
+                    Id = "test3",
+                    Text = "1. Simple item",  // This should have simple numbering stripped
+                    Type = ChecklistItemType.Text
+                }
+            };
+
+            // Act
+            var result = _converter.ConvertToSurveyJS(checklistItems, "Numbering Test");
+
+            // Assert
+            result.Should().NotBeNullOrEmpty();
+            
+            var jsonDocument = JsonDocument.Parse(result);
+            var elements = jsonDocument.RootElement.GetProperty("elements");
+            
+            // Check that complex numbering (3.1) is preserved
+            elements[0].GetProperty("title").GetString().Should().Be("3.1 General Provide that:");
+            elements[1].GetProperty("title").GetString().Should().Be("3.1 What is your name?");
+            
+            // Check that simple numbering (1.) is stripped
+            elements[2].GetProperty("title").GetString().Should().Be("Simple item");
+        }
+
+        [Fact]
+        public void ConvertToSurveyJS_ComplexNumbering_DetailedJsonCheck()
+        {
+            // Arrange
+            var checklistItems = new List<ChecklistItem>
+            {
+                new ChecklistItem
+                {
+                    Id = "test1",
+                    Text = "3.1 General Provide that:",
+                    Type = ChecklistItemType.Text
+                },
+                new ChecklistItem
+                {
+                    Id = "test2",
+                    Text = "3.1 What is your name?",
+                    Type = ChecklistItemType.Text
+                }
+            };
+
+            // Act
+            var result = _converter.ConvertToSurveyJS(checklistItems, "Detailed Test");
+
+            // Assert
+            result.Should().NotBeNullOrEmpty();
+            
+            // Print the actual JSON to see what's happening
+            // Uncomment for debugging:
+            // Console.WriteLine("Generated JSON:");
+            // Console.WriteLine(result);
+            
+            var jsonDocument = JsonDocument.Parse(result);
+            var elements = jsonDocument.RootElement.GetProperty("elements");
+            
+            var title1 = elements[0].GetProperty("title").GetString();
+            var title2 = elements[1].GetProperty("title").GetString();
+            
+            // Uncomment for debugging:
+            // Console.WriteLine($"Title 1: '{title1}'");
+            // Console.WriteLine($"Title 2: '{title2}'");
+            
+            // These should preserve the 3.1 numbering
+            title1.Should().Be("3.1 General Provide that:");
+            title2.Should().Be("3.1 What is your name?");
+        }
     }
 }

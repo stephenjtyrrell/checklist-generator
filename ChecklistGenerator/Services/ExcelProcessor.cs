@@ -103,36 +103,77 @@ namespace ChecklistGenerator.Services
 
                 // Skip common non-question content
                 var lowerContent = content.ToLower();
-                if (lowerContent.Contains("page") || lowerContent.Contains("table") || 
-                    lowerContent.Contains("figure") || lowerContent.StartsWith("column_"))
+                if (IsObviousNonQuestion(content))
                 {
                     return null;
                 }
 
-                // Skip standalone numbers or number patterns (like "3.1.1", "1)", "a)", etc.)
+                // Skip standalone numbers or number patterns
                 var trimmedContent = content.Trim();
                 if (IsStandaloneNumbering(trimmedContent))
                 {
                     return null;
                 }
 
+                // Clean the content for better analysis
+                var cleanedContent = CleanQuestionText(content);
+
                 var item = new ChecklistItem
                 {
-                    Id = $"item_{itemNumber}",
-                    Text = content.Trim(),
+                    Id = $"item_{itemNumber:D3}",
+                    Text = cleanedContent,
                     Type = DetermineQuestionType(content),
                     IsRequired = ContainsRequiredIndicator(content),
-                    Description = "" // Remove column header information from user-facing output
+                    Description = "" // Keep description empty for cleaner UI
                 };
 
                 // Extract options if it's a multiple choice question
-                if (item.Type == ChecklistItemType.RadioGroup || item.Type == ChecklistItemType.Checkbox)
+                if (item.Type == ChecklistItemType.RadioGroup || 
+                    item.Type == ChecklistItemType.Checkbox || 
+                    item.Type == ChecklistItemType.Dropdown)
                 {
                     item.Options = ExtractOptions(content);
+                    
+                    // If no options were extracted for radio/checkbox/dropdown, 
+                    // convert to boolean question
+                    if (item.Options.Count == 0)
+                    {
+                        item.Type = ChecklistItemType.Boolean;
+                        item.Options = new List<string> { "Yes", "No" };
+                    }
+                }
+                else if (item.Type == ChecklistItemType.Boolean)
+                {
+                    // Ensure boolean questions have Yes/No options
+                    item.Options = new List<string> { "Yes", "No" };
                 }
 
                 return item;
             });
+        }
+
+        private string CleanQuestionText(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return string.Empty;
+
+            // Remove excessive whitespace
+            var cleaned = Regex.Replace(text, @"\s+", " ");
+            cleaned = cleaned.Trim();
+            
+            // Remove standalone numbering from the beginning
+            cleaned = Regex.Replace(cleaned, @"^[\d\w]+[\.\)]\s*", "");
+            
+            // Remove bullet points
+            cleaned = Regex.Replace(cleaned, @"^[•\-\*○●]\s*", "");
+            
+            // Capitalize first letter if it's not already
+            if (cleaned.Length > 0 && char.IsLower(cleaned[0]))
+            {
+                cleaned = char.ToUpper(cleaned[0]) + (cleaned.Length > 1 ? cleaned.Substring(1) : "");
+            }
+            
+            return cleaned;
         }
 
         private async Task<List<ChecklistItem>> CreateGenericChecklistItems(ISheet sheet, List<string> headers)
@@ -205,63 +246,176 @@ namespace ChecklistGenerator.Services
             if (string.IsNullOrWhiteSpace(text) || text.Length < 5)
                 return false;
 
-            var lowerText = text.ToLower();
-            return text.EndsWith("?") || 
-                   lowerText.StartsWith("what") || lowerText.StartsWith("how") || 
-                   lowerText.StartsWith("when") || lowerText.StartsWith("where") ||
-                   lowerText.StartsWith("why") || lowerText.StartsWith("which") ||
-                   lowerText.Contains("do you") || lowerText.Contains("are you") ||
-                   lowerText.Contains("have you") || lowerText.Contains("will you") ||
-                   lowerText.Contains("please") || lowerText.Contains("select") ||
-                   lowerText.Contains("choose") || lowerText.Contains("enter") ||
-                   lowerText.Contains("provide") || lowerText.Contains("specify");
+            var lowerText = text.ToLower().Trim();
+            
+            // Exclude obvious non-questions
+            if (IsStandaloneNumbering(text) || 
+                lowerText.StartsWith("page ") || 
+                lowerText.StartsWith("table ") ||
+                lowerText.StartsWith("figure ") ||
+                lowerText.StartsWith("section ") ||
+                lowerText.StartsWith("chapter ") ||
+                Regex.IsMatch(lowerText, @"^(column_|row_|cell_)"))
+            {
+                return false;
+            }
+
+            // Strong question indicators
+            if (text.EndsWith("?") ||
+                lowerText.Contains("yes/no") ||
+                lowerText.Contains("true/false") ||
+                Regex.IsMatch(lowerText, @"\b(what|how|when|where|why|which|who)\b") ||
+                Regex.IsMatch(lowerText, @"\b(do|are|have|will|can|should|would|could|is|was|does|has)\s+(you|they|we|it)\b") ||
+                lowerText.Contains("please ") ||
+                lowerText.Contains("select ") ||
+                lowerText.Contains("choose ") ||
+                lowerText.Contains("enter ") ||
+                lowerText.Contains("provide ") ||
+                lowerText.Contains("specify ") ||
+                lowerText.Contains("indicate ") ||
+                lowerText.Contains("describe ") ||
+                lowerText.Contains("explain ") ||
+                lowerText.Contains("list ") ||
+                lowerText.Contains("name ") ||
+                lowerText.Contains("identify "))
+            {
+                return true;
+            }
+
+            // Check for instruction-like patterns
+            if (Regex.IsMatch(lowerText, @"\b(check|mark|tick|select|choose|circle|highlight)\s+(all|any|one|the)\b"))
+            {
+                return true;
+            }
+
+            // Check for field-like patterns
+            if (Regex.IsMatch(lowerText, @"\b(name|address|email|phone|date|number|amount|quantity|title|position|role)\b") &&
+                (text.Contains(":") || text.Contains("_") || lowerText.Contains("enter") || lowerText.Contains("provide")))
+            {
+                return true;
+            }
+
+            // Check for option-based questions
+            if (HasMultipleOptions(text))
+            {
+                return true;
+            }
+
+            // If it contains imperative verbs and is reasonably long, likely a question/instruction
+            if (text.Length > 10 && 
+                Regex.IsMatch(lowerText, @"\b(complete|fill|answer|respond|rate|evaluate|assess|review)\b"))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool HasMultipleOptions(string text)
+        {
+            // Check for numbered options
+            var numberedOptions = Regex.Matches(text, @"\b\d+[\)\.]").Count;
+            if (numberedOptions > 1) return true;
+
+            // Check for lettered options
+            var letteredOptions = Regex.Matches(text, @"\b[a-zA-Z][\)\.]").Count;
+            if (letteredOptions > 1) return true;
+
+            // Check for bullet points
+            var bullets = text.Count(c => "•-*○●".Contains(c));
+            if (bullets > 1) return true;
+
+            // Check for "or" patterns
+            if (Regex.Matches(text, @"\bor\b", RegexOptions.IgnoreCase).Count > 0 &&
+                !text.ToLower().Contains("yes or no"))
+            {
+                return true;
+            }
+
+            return false;
         }
 
         private ChecklistItemType DetermineQuestionType(string text)
         {
             var lowerText = text.ToLower();
             
-            // Check for multiple choice indicators
-            if (lowerText.Contains("select all") || lowerText.Contains("check all") || lowerText.Contains("multiple"))
+            // Check for explicit type indicators first
+            if (lowerText.Contains("comment") || lowerText.Contains("notes") || lowerText.Contains("remarks"))
+            {
+                return ChecklistItemType.Comment;
+            }
+
+            // Check for multiple choice indicators (checkboxes)
+            if (lowerText.Contains("select all") || lowerText.Contains("check all") || 
+                lowerText.Contains("multiple") || lowerText.Contains("mark all") ||
+                lowerText.Contains("tick all") || Regex.IsMatch(lowerText, @"\b(choose|select)\s+(all|multiple|any)"))
             {
                 return ChecklistItemType.Checkbox;
             }
 
-            if (lowerText.Contains("dropdown") || lowerText.Contains("select from") || lowerText.Contains("choose from"))
+            // Check for dropdown indicators
+            if (lowerText.Contains("dropdown") || lowerText.Contains("select from list") || 
+                lowerText.Contains("choose from") || lowerText.Contains("pick from") ||
+                Regex.IsMatch(lowerText, @"\b(select|choose)\s+from\s+(the\s+)?(list|menu|options)"))
             {
                 return ChecklistItemType.Dropdown;
             }
 
-            // Check for options in the text
-            var optionIndicators = new[] { "a)", "b)", "c)", "1)", "2)", "3)", "•", "-", "option" };
-            if (optionIndicators.Any(indicator => lowerText.Contains(indicator)))
+            // Check for options in the text (radio group)
+            var hasNumberedOptions = Regex.IsMatch(text, @"[0-9]\)\s*\w+") && Regex.Matches(text, @"[0-9]\)").Count > 1;
+            var hasLetterOptions = Regex.IsMatch(text, @"[a-zA-Z]\)\s*\w+") && Regex.Matches(text, @"[a-zA-Z]\)").Count > 1;
+            var hasBulletOptions = (text.Contains("•") || text.Contains("-")) && 
+                                   (text.Count(c => c == '•') > 1 || text.Count(c => c == '-') > 1);
+            var hasOrPattern = Regex.IsMatch(lowerText, @"\w+\s+or\s+\w+") && !lowerText.Contains("yes or no");
+
+            if (hasNumberedOptions || hasLetterOptions || hasBulletOptions || hasOrPattern)
             {
+                // If it's explicitly asking for multiple selections, make it checkbox
+                if (lowerText.Contains("select all") || lowerText.Contains("check all"))
+                {
+                    return ChecklistItemType.Checkbox;
+                }
                 return ChecklistItemType.RadioGroup;
             }
 
-            // Boolean questions
-            if (text.EndsWith("?") || lowerText.Contains("yes/no") || 
-                (lowerText.Contains("do you") || lowerText.Contains("are you") || 
-                 lowerText.Contains("have you") || lowerText.Contains("will you")))
+            // Boolean questions (Yes/No)
+            if (lowerText.Contains("yes/no") || lowerText.Contains("yes or no") ||
+                lowerText.Contains("true/false") || lowerText.Contains("true or false") ||
+                Regex.IsMatch(lowerText, @"\b(do|are|have|will|can|should|would|could|is|was)\s+you\b") ||
+                (text.EndsWith("?") && 
+                 (lowerText.StartsWith("do ") || lowerText.StartsWith("are ") || 
+                  lowerText.StartsWith("have ") || lowerText.StartsWith("will ") ||
+                  lowerText.StartsWith("can ") || lowerText.StartsWith("is ") ||
+                  lowerText.StartsWith("does ") || lowerText.StartsWith("has "))))
             {
-                if (lowerText.Contains("name") || lowerText.Contains("describe") || 
-                    lowerText.Contains("explain") || lowerText.Contains("details"))
-                {
-                    return ChecklistItemType.Text;
-                }
                 return ChecklistItemType.Boolean;
             }
 
-            // Text input questions
+            // Text input questions (more comprehensive detection)
             if (lowerText.Contains("name") || lowerText.Contains("address") || 
                 lowerText.Contains("description") || lowerText.Contains("details") || 
+                lowerText.Contains("explain") || lowerText.Contains("describe") ||
+                lowerText.Contains("list") || lowerText.Contains("specify") ||
+                lowerText.Contains("provide") || lowerText.Contains("enter") ||
                 lowerText.StartsWith("what") || lowerText.StartsWith("where") ||
-                lowerText.StartsWith("when") || lowerText.StartsWith("how"))
+                lowerText.StartsWith("when") || lowerText.StartsWith("how") ||
+                lowerText.StartsWith("why") || lowerText.StartsWith("which") ||
+                lowerText.Contains("number") || lowerText.Contains("amount") ||
+                lowerText.Contains("quantity") || lowerText.Contains("date") ||
+                lowerText.Contains("time") || lowerText.Contains("email") ||
+                lowerText.Contains("phone") || lowerText.Contains("website"))
             {
                 return ChecklistItemType.Text;
             }
 
-            return ChecklistItemType.Boolean; // Default
+            // If it ends with a question mark but doesn't fit other patterns, likely boolean
+            if (text.EndsWith("?"))
+            {
+                return ChecklistItemType.Boolean;
+            }
+
+            // Default to boolean for simple yes/no type questions
+            return ChecklistItemType.Boolean;
         }
 
         private bool ContainsRequiredIndicator(string text)
@@ -275,54 +429,145 @@ namespace ChecklistGenerator.Services
         {
             var options = new List<string>();
 
-            // Look for numbered or lettered options
-            var optionMatches = Regex.Matches(text, @"([a-zA-Z]\)|[0-9]\))\s*([^\r\n]+)");
-            
-            if (optionMatches.Count > 0)
+            // Strategy 1: Look for numbered options (1), 2), 3) or 1. 2. 3.)
+            var numberedMatches = Regex.Matches(text, @"(?:^|\s)(\d+)[\)\.](\s*)([^\r\n\d\)\.]*?)(?=\s*\d+[\)\.]|\s*$)", RegexOptions.Multiline);
+            if (numberedMatches.Count > 1)
             {
-                foreach (Match match in optionMatches)
+                foreach (Match match in numberedMatches)
                 {
-                    if (match.Groups.Count > 2)
+                    if (match.Groups.Count > 3)
                     {
-                        options.Add(match.Groups[2].Value.Trim());
-                    }
-                }
-            }
-            else
-            {
-                // Look for bullet points or dashes
-                var bulletMatches = Regex.Matches(text, @"[•\-]\s*([^\r\n]+)");
-                if (bulletMatches.Count > 0)
-                {
-                    foreach (Match match in bulletMatches)
-                    {
-                        if (match.Groups.Count > 1)
+                        var option = match.Groups[3].Value.Trim();
+                        if (!string.IsNullOrEmpty(option) && option.Length > 1)
                         {
-                            options.Add(match.Groups[1].Value.Trim());
-                        }
-                    }
-                }
-                else
-                {
-                    // Look for simple comma-separated options
-                    var parts = text.Split(',', StringSplitOptions.RemoveEmptyEntries);
-                    if (parts.Length > 1 && parts.Length <= 10) // Reasonable number of options
-                    {
-                        options.AddRange(parts.Select(p => p.Trim()).Where(p => !string.IsNullOrEmpty(p)));
-                    }
-                    else
-                    {
-                        // Default options for yes/no questions
-                        var lowerText = text.ToLower();
-                        if (lowerText.Contains("yes") || lowerText.Contains("no"))
-                        {
-                            options.AddRange(new[] { "Yes", "No" });
+                            options.Add(CleanOptionText(option));
                         }
                     }
                 }
             }
 
-            return options.Distinct().ToList();
+            // Strategy 2: Look for lettered options (a), b), c) or a. b. c.)
+            if (options.Count == 0)
+            {
+                var letteredMatches = Regex.Matches(text, @"(?:^|\s)([a-zA-Z])[\)\.](\s*)([^\r\n\)\.]*?)(?=\s*[a-zA-Z][\)\.]|\s*$)", RegexOptions.Multiline);
+                if (letteredMatches.Count > 1)
+                {
+                    foreach (Match match in letteredMatches)
+                    {
+                        if (match.Groups.Count > 3)
+                        {
+                            var option = match.Groups[3].Value.Trim();
+                            if (!string.IsNullOrEmpty(option) && option.Length > 1)
+                            {
+                                options.Add(CleanOptionText(option));
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Strategy 3: Look for bullet points (•, -, *, ○, ●)
+            if (options.Count == 0)
+            {
+                var bulletMatches = Regex.Matches(text, @"[•\-\*○●]\s*([^\r\n•\-\*○●]+)", RegexOptions.Multiline);
+                if (bulletMatches.Count > 1)
+                {
+                    foreach (Match match in bulletMatches)
+                    {
+                        if (match.Groups.Count > 1)
+                        {
+                            var option = match.Groups[1].Value.Trim();
+                            if (!string.IsNullOrEmpty(option) && option.Length > 1)
+                            {
+                                options.Add(CleanOptionText(option));
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Strategy 4: Look for "or" separated options
+            if (options.Count == 0)
+            {
+                var orMatches = Regex.Matches(text, @"\b(\w+(?:\s+\w+)*)\s+or\s+(\w+(?:\s+\w+)*)\b", RegexOptions.IgnoreCase);
+                if (orMatches.Count > 0)
+                {
+                    foreach (Match match in orMatches)
+                    {
+                        if (match.Groups.Count > 2)
+                        {
+                            var option1 = match.Groups[1].Value.Trim();
+                            var option2 = match.Groups[2].Value.Trim();
+                            
+                            if (!string.IsNullOrEmpty(option1) && option1.Length > 1 && !options.Contains(option1))
+                                options.Add(CleanOptionText(option1));
+                            if (!string.IsNullOrEmpty(option2) && option2.Length > 1 && !options.Contains(option2))
+                                options.Add(CleanOptionText(option2));
+                        }
+                    }
+                }
+            }
+
+            // Strategy 5: Look for comma-separated options (be more selective)
+            if (options.Count == 0)
+            {
+                var parts = text.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length > 1 && parts.Length <= 8) // Reasonable number of options
+                {
+                    // Check if these look like actual options (not just random comma-separated text)
+                    var validOptions = parts
+                        .Select(p => CleanOptionText(p.Trim()))
+                        .Where(p => !string.IsNullOrEmpty(p) && 
+                                   p.Length > 1 && p.Length < 50 && // Reasonable length
+                                   !p.ToLower().Contains("question") &&
+                                   !p.ToLower().Contains("answer") &&
+                                   !Regex.IsMatch(p, @"^\d+$")) // Not just numbers
+                        .ToList();
+
+                    if (validOptions.Count > 1 && validOptions.Count == parts.Length)
+                    {
+                        options.AddRange(validOptions);
+                    }
+                }
+            }
+
+            // Strategy 6: Default boolean options for yes/no questions
+            if (options.Count == 0)
+            {
+                var lowerText = text.ToLower();
+                if (lowerText.Contains("yes/no") || lowerText.Contains("yes or no") ||
+                    lowerText.Contains("true/false") || lowerText.Contains("true or false"))
+                {
+                    options.AddRange(new[] { "Yes", "No" });
+                }
+                else if (lowerText.Contains("true/false"))
+                {
+                    options.AddRange(new[] { "True", "False" });
+                }
+            }
+
+            // Remove duplicates and return
+            return options.Distinct().Where(o => !string.IsNullOrWhiteSpace(o)).ToList();
+        }
+
+        private string CleanOptionText(string option)
+        {
+            if (string.IsNullOrWhiteSpace(option))
+                return string.Empty;
+
+            // Remove common prefixes and suffixes
+            option = option.Trim();
+            option = Regex.Replace(option, @"^[\d\w][\)\.]?\s*", ""); // Remove numbering/lettering
+            option = Regex.Replace(option, @"[•\-\*○●]\s*", ""); // Remove bullets
+            option = option.Trim();
+
+            // Capitalize first letter
+            if (option.Length > 0)
+            {
+                option = char.ToUpper(option[0]) + (option.Length > 1 ? option.Substring(1) : "");
+            }
+
+            return option;
         }
 
         private bool IsStandaloneNumbering(string text)
@@ -354,8 +599,14 @@ namespace ChecklistGenerator.Services
             var items = new List<ChecklistItem>();
             var itemCounter = startingItemNumber;
 
+            // First pass: identify and combine numbered/lettered items with their text
+            var processedCells = new bool[rowData.Count];
+            
             for (int colIndex = 0; colIndex < rowData.Count; colIndex++)
             {
+                if (processedCells[colIndex])
+                    continue;
+
                 var cellContent = rowData[colIndex];
                 if (string.IsNullOrWhiteSpace(cellContent))
                     continue;
@@ -365,49 +616,85 @@ namespace ChecklistGenerator.Services
                 // Check if this cell contains standalone numbering
                 if (IsStandaloneNumbering(trimmedContent))
                 {
-                    // Look ahead to the next non-empty cell to see if it contains question text
+                    // Look for the corresponding question text in adjacent cells
                     string combinedText = trimmedContent;
-                    string combinedColumnHeader = headers[colIndex];
+                    bool foundQuestionText = false;
 
-                    for (int nextColIndex = colIndex + 1; nextColIndex < rowData.Count; nextColIndex++)
+                    // Check the next few cells for question text
+                    for (int nextColIndex = colIndex + 1; nextColIndex < Math.Min(rowData.Count, colIndex + 3); nextColIndex++)
                     {
+                        if (processedCells[nextColIndex])
+                            continue;
+
                         var nextCellContent = rowData[nextColIndex];
                         if (!string.IsNullOrWhiteSpace(nextCellContent))
                         {
                             var nextTrimmed = nextCellContent.Trim();
                             
                             // If the next cell looks like question text, combine them
-                            if (LooksLikeQuestion(nextTrimmed) || nextTrimmed.Length > 10)
+                            if (LooksLikeQuestion(nextTrimmed) || 
+                                (nextTrimmed.Length > 10 && !IsStandaloneNumbering(nextTrimmed)))
                             {
                                 combinedText = $"{trimmedContent} {nextTrimmed}";
-                                combinedColumnHeader = ""; // Don't show column info to users
-                                
-                                // Mark the next cell as processed by clearing it
-                                rowData[nextColIndex] = string.Empty;
-                                break;
-                            }
-                            else
-                            {
-                                // If next cell doesn't look like question text, stop looking
+                                processedCells[nextColIndex] = true;
+                                foundQuestionText = true;
                                 break;
                             }
                         }
                     }
 
                     // Only create an item if we found question text to combine with the numbering
-                    if (combinedText != trimmedContent)
+                    if (foundQuestionText)
                     {
-                        var item = await AnalyzeContentForChecklistItem(combinedText, itemCounter++, combinedColumnHeader);
+                        var item = await AnalyzeContentForChecklistItem(combinedText, itemCounter++, "");
                         if (item != null)
                         {
                             items.Add(item);
                         }
                     }
-                    // If no question text found, skip the standalone numbering
+                    
+                    processedCells[colIndex] = true;
                 }
-                else
+                else if (LooksLikeQuestion(trimmedContent) || 
+                         (trimmedContent.Length > 15 && HasMultipleOptions(trimmedContent)))
                 {
-                    // Process non-numbering content normally
+                    // Process as a standalone question
+                    var item = await AnalyzeContentForChecklistItem(trimmedContent, itemCounter++, "");
+                    if (item != null)
+                    {
+                        items.Add(item);
+                    }
+                    processedCells[colIndex] = true;
+                }
+                else if (trimmedContent.Length > 20 && ContainsQuestionKeywords(trimmedContent))
+                {
+                    // Process longer text that might be a question even if not detected as such
+                    var item = await AnalyzeContentForChecklistItem(trimmedContent, itemCounter++, "");
+                    if (item != null)
+                    {
+                        items.Add(item);
+                    }
+                    processedCells[colIndex] = true;
+                }
+            }
+
+            // Second pass: handle any remaining unprocessed cells that might be questions
+            for (int colIndex = 0; colIndex < rowData.Count; colIndex++)
+            {
+                if (processedCells[colIndex])
+                    continue;
+
+                var cellContent = rowData[colIndex];
+                if (string.IsNullOrWhiteSpace(cellContent))
+                    continue;
+
+                var trimmedContent = cellContent.Trim();
+                
+                // Be more lenient with remaining content
+                if (trimmedContent.Length > 8 && 
+                    !IsObviousNonQuestion(trimmedContent) &&
+                    ContainsQuestionKeywords(trimmedContent))
+                {
                     var item = await AnalyzeContentForChecklistItem(trimmedContent, itemCounter++, "");
                     if (item != null)
                     {
@@ -417,6 +704,37 @@ namespace ChecklistGenerator.Services
             }
 
             return items;
+        }
+
+        private bool ContainsQuestionKeywords(string text)
+        {
+            var lowerText = text.ToLower();
+            var questionKeywords = new[]
+            {
+                "what", "how", "when", "where", "why", "which", "who",
+                "do you", "are you", "have you", "will you", "can you",
+                "please", "select", "choose", "enter", "provide", "specify",
+                "indicate", "describe", "explain", "list", "name", "identify",
+                "check", "mark", "tick", "circle", "rate", "evaluate",
+                "complete", "fill", "answer", "respond", "yes/no", "true/false"
+            };
+
+            return questionKeywords.Any(keyword => lowerText.Contains(keyword));
+        }
+
+        private bool IsObviousNonQuestion(string text)
+        {
+            var lowerText = text.ToLower();
+            var nonQuestionPatterns = new[]
+            {
+                "page", "table", "figure", "section", "chapter", "header",
+                "footer", "title", "subtitle", "reference", "note",
+                "copyright", "version", "date", "author", "document"
+            };
+
+            return nonQuestionPatterns.Any(pattern => lowerText.StartsWith(pattern)) ||
+                   Regex.IsMatch(text, @"^\d{1,3}$") || // Just a number
+                   Regex.IsMatch(text, @"^[A-Z]{1,5}$"); // Just letters
         }
     }
 }

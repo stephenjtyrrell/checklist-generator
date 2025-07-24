@@ -4,14 +4,6 @@
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
       "version": "18"
-    },
-    "ghcr.io/devcontainers/features/common-utils:2": {
-      "installZsh": true,
-      "installOhMyZsh": true,
-      "upgradePackages": true,
-      "username": "vscode",
-      "userUid": "1000",
-      "userGid": "1000"
     }
   },
   "customizations": {
@@ -39,6 +31,5 @@
     }
   },
   "postCreateCommand": "cd ChecklistGenerator && dotnet restore && chmod +x ../start.sh ../codespace-update.sh ../webhook-deploy.sh",
-  "postStartCommand": "echo '🚀 Codespace ready! Run ./start.sh to start the application'",
-  "remoteUser": "vscode"
+  "postStartCommand": "echo '🚀 Codespace ready! Run ./start.sh to start the application'"
 }

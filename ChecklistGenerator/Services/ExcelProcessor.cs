@@ -345,10 +345,11 @@ namespace ChecklistGenerator.Services
                 return ChecklistItemType.Comment;
             }
 
-            // Check for multiple choice indicators (checkboxes)
+            // For legal/regulatory text, be very conservative about multiple choice
+            // Look for explicit indicators of choice questions
             if (lowerText.Contains("select all") || lowerText.Contains("check all") || 
-                lowerText.Contains("multiple") || lowerText.Contains("mark all") ||
-                lowerText.Contains("tick all") || Regex.IsMatch(lowerText, @"\b(choose|select)\s+(all|multiple|any)"))
+                lowerText.Contains("mark all") || lowerText.Contains("tick all") ||
+                Regex.IsMatch(lowerText, @"\b(choose|select)\s+(all|multiple|any)\b"))
             {
                 return ChecklistItemType.Checkbox;
             }
@@ -356,19 +357,17 @@ namespace ChecklistGenerator.Services
             // Check for dropdown indicators
             if (lowerText.Contains("dropdown") || lowerText.Contains("select from list") || 
                 lowerText.Contains("choose from") || lowerText.Contains("pick from") ||
-                Regex.IsMatch(lowerText, @"\b(select|choose)\s+from\s+(the\s+)?(list|menu|options)"))
+                Regex.IsMatch(lowerText, @"\b(select|choose)\s+from\s+(the\s+)?(list|menu|options)\b"))
             {
                 return ChecklistItemType.Dropdown;
             }
 
-            // Check for options in the text (radio group)
-            var hasNumberedOptions = Regex.IsMatch(text, @"[0-9]\)\s*\w+") && Regex.Matches(text, @"[0-9]\)").Count > 1;
-            var hasLetterOptions = Regex.IsMatch(text, @"[a-zA-Z]\)\s*\w+") && Regex.Matches(text, @"[a-zA-Z]\)").Count > 1;
-            var hasBulletOptions = (text.Contains("•") || text.Contains("-")) && 
-                                   (text.Count(c => c == '•') > 1 || text.Count(c => c == '-') > 1);
-            var hasOrPattern = Regex.IsMatch(lowerText, @"\w+\s+or\s+\w+") && !lowerText.Contains("yes or no");
-
-            if (hasNumberedOptions || hasLetterOptions || hasBulletOptions || hasOrPattern)
+            // Be more strict about radio groups - only if there are clear numbered/lettered options
+            var hasExplicitOptions = Regex.IsMatch(text, @"\s+[a-zA-Z]\)\s+\w+") && Regex.Matches(text, @"\s+[a-zA-Z]\)").Count > 1;
+            var hasNumberedOptions = Regex.IsMatch(text, @"\s+\d+\)\s+\w+") && Regex.Matches(text, @"\s+\d+\)").Count > 1;
+            var hasBulletOptions = Regex.IsMatch(text, @"[\r\n•]\s*\w+") && Regex.Matches(text, @"[\r\n•]").Count > 1;
+            
+            if (hasExplicitOptions || hasNumberedOptions || hasBulletOptions)
             {
                 // If it's explicitly asking for multiple selections, make it checkbox
                 if (lowerText.Contains("select all") || lowerText.Contains("check all"))
@@ -378,11 +377,12 @@ namespace ChecklistGenerator.Services
                 return ChecklistItemType.RadioGroup;
             }
 
-            // Boolean questions (Yes/No)
+            // Boolean questions (Yes/No) - be more specific
             if (lowerText.Contains("yes/no") || lowerText.Contains("yes or no") ||
                 lowerText.Contains("true/false") || lowerText.Contains("true or false") ||
-                Regex.IsMatch(lowerText, @"\b(do|are|have|will|can|should|would|could|is|was)\s+you\b") ||
-                (text.EndsWith("?") && 
+                Regex.IsMatch(lowerText, @"\b(do|are|have|will|can|should|would|could|is|was|does|has)\s+you\b") ||
+                lowerText.Contains("comply") || lowerText.Contains("ensure") ||
+                (text.EndsWith("?") && text.Length < 200 && // Short questions ending with ?
                  (lowerText.StartsWith("do ") || lowerText.StartsWith("are ") || 
                   lowerText.StartsWith("have ") || lowerText.StartsWith("will ") ||
                   lowerText.StartsWith("can ") || lowerText.StartsWith("is ") ||
@@ -408,13 +408,16 @@ namespace ChecklistGenerator.Services
                 return ChecklistItemType.Text;
             }
 
-            // If it ends with a question mark but doesn't fit other patterns, likely boolean
-            if (text.EndsWith("?"))
+            // For complex legal/regulatory text, default to comment field for long text
+            if (text.Length > 300 || 
+                lowerText.Contains("depositary") || lowerText.Contains("directive") ||
+                lowerText.Contains("accordance") || lowerText.Contains("regulation") ||
+                lowerText.Contains("shall") || lowerText.Contains("whereby"))
             {
-                return ChecklistItemType.Boolean;
+                return ChecklistItemType.Comment;
             }
 
-            // Default to boolean for simple yes/no type questions
+            // Default to boolean for everything else
             return ChecklistItemType.Boolean;
         }
 
@@ -508,23 +511,35 @@ namespace ChecklistGenerator.Services
                 }
             }
 
-            // Strategy 5: Look for comma-separated options (be more selective)
+            // Strategy 5: Look for comma-separated options (be much more selective)
             if (options.Count == 0)
             {
                 var parts = text.Split(',', StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length > 1 && parts.Length <= 8) // Reasonable number of options
+                if (parts.Length >= 2 && parts.Length <= 5) // Stricter range for real options
                 {
                     // Check if these look like actual options (not just random comma-separated text)
                     var validOptions = parts
                         .Select(p => CleanOptionText(p.Trim()))
                         .Where(p => !string.IsNullOrEmpty(p) && 
-                                   p.Length > 1 && p.Length < 50 && // Reasonable length
+                                   p.Length > 2 && p.Length < 30 && // Stricter length for real options
                                    !p.ToLower().Contains("question") &&
                                    !p.ToLower().Contains("answer") &&
-                                   !Regex.IsMatch(p, @"^\d+$")) // Not just numbers
+                                   !p.ToLower().Contains("shall") &&
+                                   !p.ToLower().Contains("that") &&
+                                   !p.ToLower().Contains("which") &&
+                                   !p.ToLower().Contains("where") &&
+                                   !p.ToLower().Contains("accordance") &&
+                                   !p.Contains("(") && !p.Contains(")") && // Avoid legal parenthetical references
+                                   !Regex.IsMatch(p, @"^\d+$") && // Not just numbers
+                                   !Regex.IsMatch(p, @"\b(the|and|or|of|in|to|for|with|by)\b", RegexOptions.IgnoreCase)) // Avoid common articles/prepositions
                         .ToList();
 
-                    if (validOptions.Count > 1 && validOptions.Count == parts.Length)
+                    // Only accept as options if they're all similar length and format
+                    if (validOptions.Count >= 2 && validOptions.Count == parts.Length &&
+                        validOptions.All(o => o.Length > 3 && o.Length < 25) &&
+                        !text.ToLower().Contains("depositary") && // Avoid financial/legal jargon
+                        !text.ToLower().Contains("accordance") &&
+                        !text.ToLower().Contains("directive"))
                     {
                         options.AddRange(validOptions);
                     }

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 
 echo "🚀 Starting Checklist Generator Application..."
 

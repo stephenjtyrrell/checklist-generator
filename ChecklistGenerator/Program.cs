@@ -44,3 +44,6 @@ app.MapControllers();
 app.MapGet("/", () => Results.Redirect("/index.html"));
 
 app.Run();
+
+// Make the Program class accessible for testing
+public partial class Program { }

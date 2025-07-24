@@ -187,7 +187,7 @@ jobs:
           --registry-login-server ${{ secrets.AZURE_CONTAINER_REGISTRY_NAME }}.azurecr.io \
           --registry-username $ACR_USERNAME \
           --registry-password $ACR_PASSWORD \
-          --ports 80 \
+          --ports 80 443 \
           --protocol TCP \
           --restart-policy Always \
           --environment-variables ASPNETCORE_URLS=http://127.0.0.1:5000 \
@@ -198,15 +198,19 @@ jobs:
       run: |
         FQDN=$(az container show --name ${{ env.AZURE_CONTAINER_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query "ipAddress.fqdn" -o tsv)
         echo "🚀 Application deployed successfully!"
-        echo "🌐 URL: http://$FQDN"
-        echo "DEPLOYMENT_URL=http://$FQDN" >> $GITHUB_ENV
+        echo "🌐 HTTP URL: http://$FQDN"
+        echo "🔒 HTTPS URL: https://$FQDN"
+        echo "DEPLOYMENT_URL_HTTP=http://$FQDN" >> $GITHUB_ENV
+        echo "DEPLOYMENT_URL_HTTPS=https://$FQDN" >> $GITHUB_ENV
     
     - name: 📝 Deployment Summary
       run: |
+        FQDN=$(az container show --name ${{ env.AZURE_CONTAINER_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query "ipAddress.fqdn" -o tsv)
         echo "=== AZURE DEPLOYMENT SUMMARY ==="
         echo "✅ Status: Deployed Successfully"
-        echo "🌐 URL: ${{ env.DEPLOYMENT_URL }}"
-        echo "📦 Image: ${{ secrets.AZURE_CONTAINER_REGISTRY_NAME }}.azurecr.io/checklist-generator:latest"
+        echo "🌐 HTTP URL: http://$FQDN"
+        echo "🔒 HTTPS URL: https://$FQDN"
+        echo "📦 Image: checklist-generator:latest"
         echo "🏷️  Commit: ${{ github.sha }}"
         echo "📅 Deployed: $(date)"
         echo "🔧 Resource Group: ${{ env.AZURE_RESOURCE_GROUP }}"

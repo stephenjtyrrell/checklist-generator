@@ -8,13 +8,15 @@ A .NET 9 web application that converts DOCX documents to interactive SurveyJS fo
 ## 🌐 Live Application
 
 **🚀 Currently deployed and running on Azure:**
-**https://checklist-generator-1753368404.eastus.azurecontainer.io**
+**https://checklist-generator-1753368404.eastus.azurecontainer.io** (HTTPS)
+**http://checklist-generator-1753368404.eastus.azurecontainer.io** (HTTP)
 
 *Upload your DOCX files and convert them to interactive SurveyJS forms instantly!*
 
 ### 🔗 Custom Domain Ready
 - ✅ **Clean URLs**: No port numbers required
 - ✅ **nginx Reverse Proxy**: Professional setup with security headers
+- ✅ **HTTPS Support**: SSL encryption with self-signed certificates
 - ✅ **Custom Domain Support**: Ready for your own domain name
 - 📋 **Setup Guide**: See [CUSTOM_DOMAIN.md](./CUSTOM_DOMAIN.md)
 

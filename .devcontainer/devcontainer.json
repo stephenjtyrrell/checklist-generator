@@ -1,0 +1,35 @@
+{
+  "name": "Checklist Generator",
+  "image": "mcr.microsoft.com/dotnet/sdk:9.0",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "18"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.vscode-dotnet-runtime",
+        "bradlc.vscode-tailwindcss",
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        "dotnet.server.useOmnisharp": false
+      }
+    }
+  },
+  "forwardPorts": [5000, 5001],
+  "portsAttributes": {
+    "5000": {
+      "label": "HTTP",
+      "onAutoForward": "notify"
+    },
+    "5001": {
+      "label": "HTTPS",
+      "onAutoForward": "notify"
+    }
+  },
+  "postCreateCommand": "cd ChecklistGenerator && dotnet restore",
+  "remoteUser": "vscode"
+}

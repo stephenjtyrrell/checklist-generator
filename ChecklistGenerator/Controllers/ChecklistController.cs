@@ -46,7 +46,7 @@ namespace ChecklistGenerator.Controllers
                 _logger.LogInformation($"Processing file: {file.FileName}");
 
                 List<ChecklistItem> checklistItems = new List<ChecklistItem>();
-                byte[] excelBytes = null;
+                byte[]? excelBytes = null;
                 string downloadFileName = string.Empty;
                 
                 try

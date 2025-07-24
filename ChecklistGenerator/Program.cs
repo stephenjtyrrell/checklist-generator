@@ -15,7 +15,7 @@ builder.Services.Configure<IISServerOptions>(options =>
     options.MaxRequestBodySize = 50 * 1024 * 1024; // 50MB
 });
 
-// Add CORS for development
+// Add CORS for development and Codespaces
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>

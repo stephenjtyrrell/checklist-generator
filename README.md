@@ -9,7 +9,7 @@ A .NET 9 web application that converts DOCX documents to interactive SurveyJS fo
 
 **🚀 Currently deployed and running:**
 - **Production**: https://checklist.stephentyrrell.ie ⭐ (Custom Domain - HTTPS)
-- **Azure URL**: https://checklist-generator-1753371092.eastus.azurecontainer.io
+- **Azure URL**: https://checklist-generator-stable.eastus.azurecontainer.io
 - **HTTP Fallback**: http://checklist.stephentyrrell.ie
 
 *Upload your DOCX files and convert them to interactive SurveyJS forms instantly!*
@@ -297,7 +297,7 @@ The production application uses Cloudflare for:
 ```
 Type: CNAME
 Name: checklist
-Value: checklist-generator-1753371092.eastus.azurecontainer.io
+Value: checklist-generator-stable.eastus.azurecontainer.io
 Proxy: ✅ Proxied (orange cloud)
 ```
 

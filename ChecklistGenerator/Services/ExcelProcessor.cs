@@ -331,22 +331,7 @@ namespace ChecklistGenerator.Services
                 return false;
 
             // Check for common numbering patterns
-            var numberingPatterns = new[]
-            {
-                @"^\d+$",                          // Pure numbers: "1", "2", "123"
-                @"^\d+\.$",                        // Numbered with period: "1.", "2.", "10."
-                @"^\d+\.\d+$",                     // Section numbering: "1.1", "3.2"
-                @"^\d+\.\d+\.\d+$",               // Sub-section numbering: "1.1.1", "3.2.1"
-                @"^\d+\.\d+\.\d+\.\d+$",          // Deep numbering: "1.1.1.1"
-                @"^[a-zA-Z]\)$",                   // Letter with parenthesis: "a)", "b)", "A)"
-                @"^[a-zA-Z]\.$",                   // Letter with period: "a.", "b.", "A."
-                @"^\([a-zA-Z]\)$",                 // Letter in parentheses: "(a)", "(b)"
-                @"^\(\d+\)$",                      // Number in parentheses: "(1)", "(2)"
-                @"^[ivxlcdm]+\.$",                 // Roman numerals: "i.", "ii.", "iii."
-                @"^[IVXLCDM]+\.$"                  // Capital Roman numerals: "I.", "II.", "III."
-            };
-
-            return numberingPatterns.Any(pattern => Regex.IsMatch(text, pattern, RegexOptions.IgnoreCase));
+            return _numberingPatterns.Any(pattern => Regex.IsMatch(text, pattern, RegexOptions.IgnoreCase));
         }
 
         private async Task<List<ChecklistItem>> ProcessRowForChecklistItems(List<string> rowData, List<string> headers, int startingItemNumber)

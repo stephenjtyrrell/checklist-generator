@@ -16,7 +16,7 @@ A .NET 9 web application that converts DOCX documents to interactive SurveyJS fo
 ### 🔗 Custom Domain Ready
 - ✅ **Clean URLs**: No port numbers required
 - ✅ **nginx Reverse Proxy**: Professional setup with security headers
-- ✅ **HTTPS Support**: SSL encryption with self-signed certificates
+- ✅ **HTTPS Support**: SSL encryption with self-signed certificates ⚡ Ready!
 - ✅ **Custom Domain Support**: Ready for your own domain name
 - 📋 **Setup Guide**: See [CUSTOM_DOMAIN.md](./CUSTOM_DOMAIN.md)
 

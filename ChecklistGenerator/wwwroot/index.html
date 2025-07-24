@@ -167,6 +167,59 @@
             color: #0056b3;
         }
         
+        .sample-downloads {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        .sample-item {
+            text-align: center;
+            min-width: 200px;
+            padding: 15px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+        
+        .sample-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .sample-item h4 {
+            margin: 10px 0;
+            color: #0056b3;
+            font-size: 16px;
+        }
+        
+        .sample-item p {
+            font-size: 14px;
+            margin: 5px 0 15px 0;
+            color: #666;
+        }
+        
+        .download-btn {
+            display: inline-block;
+            background-color: #28a745;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+        }
+        
+        .download-btn:hover {
+            background-color: #218838;
+            color: white;
+            text-decoration: none;
+        }
+        
         .survey-section {
             background-color: #f8f9fa;
             border: 1px solid #dee2e6;
@@ -246,6 +299,37 @@
                 <li>Download or copy the generated JSON for use in your surveys</li>
             </ul>
             <p><strong>New:</strong> Click "Preview Survey Form" to see how your generated survey will look and behave in a real SurveyJS application!</p>
+        </div>
+        
+        <div class="info-section">
+            <h3>📄 Sample Documents</h3>
+            <p>Don't have a Word document ready? Download one of our sample documents to test the converter:</p>
+            <div class="sample-downloads">
+                <div class="sample-item">
+                    <h4>📋 Basic Checklist</h4>
+                    <p>Simple checklist format for testing</p>
+                    <a href="/samples/basic-checklist-sample.docx" download="basic-checklist-sample.docx" class="download-btn">
+                        ⬇️ Download
+                    </a>
+                </div>
+                <div class="sample-item">
+                    <h4>💰 Fund Regulation</h4>
+                    <p>Money market fund regulation checklist</p>
+                    <a href="/samples/money-market-fund-regulation-sample.docx" download="money-market-fund-regulation-sample.docx" class="download-btn">
+                        ⬇️ Download
+                    </a>
+                </div>
+                <div class="sample-item">
+                    <h4>📋 UCITS Application</h4>
+                    <p>Complex application form with sections</p>
+                    <a href="/samples/ucits-application-form-sample.docx" download="ucits-application-form-sample.docx" class="download-btn">
+                        ⬇️ Download
+                    </a>
+                </div>
+            </div>
+            <p style="margin-top: 20px; font-size: 14px; color: #666; text-align: center;">
+                💡 <strong>Tip:</strong> After downloading, use the upload section below to convert these documents and see how the converter works!
+            </p>
         </div>
         
         <div class="upload-section">

@@ -223,6 +223,10 @@
             max-height: 300px;
             overflow-y: auto;
         }
+        
+        .btn-download:hover {
+            background-color: #218838;
+        }
     </style>
 </head>
 <body>
@@ -232,9 +236,8 @@
         <div class="info-section">
             <h3>How it works:</h3>
             <ul>
-                <li>Upload a Word document (.doc or .docx) containing checklist items</li>
+                <li>Upload a Word document (.docx) containing checklist items</li>
                 <li>✅ <strong>Full support for .docx files</strong> (modern Word format)</li>
-                <li>✅ <strong>Automatic .doc to .docx conversion</strong> (legacy files are converted first)</li>
                 <li>The application will analyze the document structure</li>
                 <li>Extract questions, checkboxes, and form elements</li>
                 <li>Convert them into SurveyJS JSON format</li>
@@ -242,16 +245,15 @@
                 <li>💾 <strong>Test and export survey responses</strong> for analysis</li>
                 <li>Download or copy the generated JSON for use in your surveys</li>
             </ul>
-            <p><strong>Note:</strong> Legacy .doc files are automatically converted to .docx format for better processing.</p>
             <p><strong>New:</strong> Click "Preview Survey Form" to see how your generated survey will look and behave in a real SurveyJS application!</p>
         </div>
         
         <div class="upload-section">
             <h3>📁 Upload Word Document</h3>
-            <p>Select a .doc or .docx file containing your checklist</p>
+            <p>Select a .docx file containing your checklist</p>
             
             <div class="file-input">
-                <input type="file" id="fileInput" accept=".doc,.docx" />
+                <input type="file" id="fileInput" accept=".docx" />
             </div>
             
             <button onclick="uploadFile()" id="uploadBtn">
@@ -335,15 +337,16 @@
                 
                 if (result.success) {
                     var message = `Found ${result.itemCount} checklist items and converted them to SurveyJS format.`;
-                    if (result.wasConverted) {
-                        message += `\n\n🔄 File was automatically converted from .doc to .docx format for better processing.`;
+                    if (result.excelDownloadId && result.excelFileName) {
+                        message += `<br><br>📊 Excel file ready for download: ${result.excelFileName}`;
+                        message += `<br>📥 <a href="/api/checklist/downloadExcel/${result.excelDownloadId}" download="${result.excelFileName}">Download Excel File</a>`;
                     }
                     if (result.message) {
-                        message += `\n\n${result.message}`;
+                        message += `<br><br>${result.message}`;
                     }
                     
                     var resultType = result.hasIssues ? 'warning' : 'success';
-                    var icon = result.hasIssues ? '⚠️' : result.wasConverted ? '🔄✅' : '✅';
+                    var icon = result.hasIssues ? '⚠️' : '✅';
                     
                     showResult(
                         `${icon} Processed "${result.fileName}"`,
@@ -575,7 +578,7 @@
             const jsonOutputDiv = document.getElementById('jsonOutput');
             
             resultTitle.textContent = title;
-            resultMessage.textContent = message;
+            resultMessage.innerHTML = message;
             jsonOutputDiv.textContent = jsonOutput;
             currentJsonOutput = jsonOutput;
             

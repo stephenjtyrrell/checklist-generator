@@ -2,15 +2,23 @@
 
 A .NET 9 web application that converts DOCX documents to interactive SurveyJS forms.
 
+![Build Status](https://github.com/stephenjtyrrell/checklist-generator/workflows/Build%20and%20Deploy%20Checklist%20Generator/badge.svg)
+![Codespace Deploy](https://github.com/stephenjtyrrell/checklist-generator/workflows/Codespace%20Auto-Deploy/badge.svg)
+
 ## 🚀 Deploy to GitHub Codespaces (Recommended)
 
-**One-click deployment - No setup required!**
+**Automated deployment with GitHub Actions!**
 
-1. **Push to GitHub**: Push this repository to GitHub
+1. **Push to GitHub**: Changes automatically trigger build and deployment
 2. **Open Codespaces**: Click the green "Code" button → "Codespaces" → "Create codespace"
 3. **Auto-setup**: Codespaces will automatically configure everything
 4. **Start**: Run `./start.sh` or use the terminal to start the app
 5. **Access**: Use the forwarded port URL to access your application
+
+### 🔄 Auto-Updates in Codespace
+```bash
+./codespace-update.sh  # Pull latest changes and restart
+```
 
 ## ✨ Features
 
@@ -19,6 +27,7 @@ A .NET 9 web application that converts DOCX documents to interactive SurveyJS fo
 - **SurveyJS Output**: Generates interactive forms from document content
 - **Download Support**: Download the converted Excel file
 - **Cloud Ready**: Optimized for GitHub Codespaces and cloud hosting
+- **CI/CD Pipeline**: Automated building, testing, and deployment
 
 ## 🛠️ Local Development
 

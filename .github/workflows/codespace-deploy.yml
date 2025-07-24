@@ -1,0 +1,45 @@
+name: Codespace Auto-Deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  prepare-codespace:
+    name: Prepare for Codespace Deployment
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 🛒 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🔧 Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+        
+    - name: 🧪 Quick build verification
+      run: |
+        cd ChecklistGenerator
+        dotnet restore
+        dotnet build --configuration Release
+        
+    - name: ✅ Codespace Ready
+      run: |
+        echo "🚀 Codespace deployment ready!"
+        echo ""
+        echo "📋 Deployment Instructions:"
+        echo "1. Go to: https://github.com/${{ github.repository }}"
+        echo "2. Click 'Code' → 'Codespaces'"
+        echo "3. Create new codespace or restart existing one"
+        echo "4. Run: ./start.sh"
+        echo ""
+        echo "🔗 Direct link: https://github.com/codespaces/new?repo=${{ github.repository }}"
+        
+    - name: 🎯 Auto-deployment trigger (future enhancement)
+      run: |
+        # Future: This could trigger automatic Codespace refresh
+        # For now, manual deployment via GitHub UI
+        echo "✨ Ready for manual Codespace deployment"
+        echo "🔧 Auto-refresh capabilities can be added with GitHub Apps"

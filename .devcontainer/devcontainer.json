@@ -30,6 +30,7 @@
       "onAutoForward": "notify"
     }
   },
-  "postCreateCommand": "cd ChecklistGenerator && dotnet restore",
+  "postCreateCommand": "cd ChecklistGenerator && dotnet restore && chmod +x ../start.sh ../codespace-update.sh ../webhook-deploy.sh",
+  "postStartCommand": "echo '🚀 Codespace ready! Run ./start.sh to start the application'",
   "remoteUser": "vscode"
 }

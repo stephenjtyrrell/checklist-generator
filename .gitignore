@@ -497,6 +497,11 @@ jspm_packages/
 # IDE - WebStorm
 .idea/
 
+# Configuration files with secrets
+appsettings.local.json
+appsettings.*.local.json
+secrets.json
+
 # OS generated files
 Thumbs.db
 ehthumbs.db

@@ -14,8 +14,9 @@ namespace ChecklistGenerator.Controllers
         private readonly ILogger<ChecklistController> _logger;
         private readonly IWebHostEnvironment _webHostEnvironment;
         
-        // In-memory storage for Excel files (in production, consider using a cache like Redis)
+        // In-memory cache for Excel files (for production, consider Redis)
         private static readonly Dictionary<string, (byte[] Data, string FileName)> _excelCache = new();
+        private const int MaxCacheSize = 10;
 
         public ChecklistController(
             DocxToExcelConverter docxToExcelConverter,
@@ -32,71 +33,38 @@ namespace ChecklistGenerator.Controllers
         }
 
         [HttpPost("upload")]
-        public async Task<IActionResult> UploadAndConvert(IFormFile file)
+        public async Task<IActionResult> UploadAndConvert(IFormFile? file)
         {
             try
             {
-                if (file == null || file.Length == 0)
+                if (file?.Length == 0 || file == null)
                 {
-                    return BadRequest("No file uploaded");
+                    return BadRequest(new { Success = false, Message = "No file uploaded" });
                 }
 
-                if (!file.FileName.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))
+                var fileName = file.FileName;
+                if (string.IsNullOrEmpty(fileName) || !fileName.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))
                 {
-                    return BadRequest("Only .docx files are supported");
+                    return BadRequest(new { Success = false, Message = "Only .docx files are supported" });
                 }
 
-                _logger.LogInformation($"Processing file: {file.FileName}");
+                _logger.LogInformation("Processing file: {FileName}", file.FileName);
 
-                List<ChecklistItem> checklistItems = new List<ChecklistItem>();
-                byte[]? excelBytes = null;
-                string downloadFileName = string.Empty;
+                List<ChecklistItem> checklistItems;
+                byte[] excelBytes;
+                string downloadFileName;
                 
-                try
-                {
-                    using (var stream = file.OpenReadStream())
-                    {
-                        // Convert DOCX to Excel
-                        _logger.LogInformation("Converting DOCX to Excel...");
-                        Stream excelStream;
-                        try
-                        {
-                            var conversionResult = await _docxToExcelConverter.ConvertDocxToExcelAsync(stream, file.FileName);
-                            excelStream = conversionResult.ExcelStream;
-                            excelBytes = conversionResult.ExcelBytes;
-                            downloadFileName = conversionResult.FileName;
-                            _logger.LogInformation($"DOCX to Excel conversion successful. Download filename: {downloadFileName}");
-                        }
-                        catch (Exception conversionEx)
-                        {
-                            _logger.LogError(conversionEx, "Failed to convert DOCX to Excel");
-                            return BadRequest($"Failed to convert DOCX to Excel: {conversionEx.Message}");
-                        }
-                        
-                        // Process the Excel file to extract checklist items
-                        _logger.LogInformation("Processing Excel file to extract checklist items...");
-                        try
-                        {
-                            checklistItems = await _excelProcessor.ProcessExcelAsync(excelStream, file.FileName);
-                            _logger.LogInformation($"Extracted {checklistItems.Count} checklist items from Excel");
-                        }
-                        catch (Exception processingEx)
-                        {
-                            _logger.LogError(processingEx, "Failed to process Excel file");
-                            return BadRequest($"Failed to process Excel file: {processingEx.Message}");
-                        }
-                        finally
-                        {
-                            excelStream?.Dispose();
-                        }
-                    }
-                }
-                catch (Exception processingEx)
-                {
-                    _logger.LogError(processingEx, "Error during file processing");
-                    return StatusCode(500, $"Error processing file: {processingEx.Message}");
-                }
-
+                using var stream = file.OpenReadStream();
+                
+                // Convert DOCX to Excel
+                var conversionResult = await _docxToExcelConverter.ConvertDocxToExcelAsync(stream, file.FileName ?? "unknown.docx");
+                using var excelStream = conversionResult.ExcelStream;
+                excelBytes = conversionResult.ExcelBytes;
+                downloadFileName = conversionResult.FileName;
+                
+                // Process Excel to extract checklist items
+                checklistItems = await _excelProcessor.ProcessExcelAsync(excelStream, file.FileName ?? "unknown.docx");
+                
                 if (checklistItems.Count == 0)
                 {
                     checklistItems.Add(new ChecklistItem
@@ -109,30 +77,17 @@ namespace ChecklistGenerator.Controllers
                     });
                 }
 
-                _logger.LogInformation($"Extracted {checklistItems.Count} checklist items");
-
-                var surveyJson = _surveyConverter.ConvertToSurveyJS(
+                var surveyJson = await _surveyConverter.ConvertToSurveyJSAsync(
                     checklistItems, 
-                    Path.GetFileNameWithoutExtension(file.FileName));
+                    Path.GetFileNameWithoutExtension(file.FileName ?? "Generated Survey"));
 
                 var hasProcessingIssues = checklistItems.Any(item => 
-                    item.Id.Contains("error") || 
-                    item.Id.Contains("failed") || 
-                    item.Id.Contains("limitation"));
+                    item.Id.Contains("error", StringComparison.OrdinalIgnoreCase) || 
+                    item.Id.Contains("failed", StringComparison.OrdinalIgnoreCase) || 
+                    item.Id.Contains("limitation", StringComparison.OrdinalIgnoreCase));
 
-                // Store Excel data in memory for potential download
-                var downloadId = Guid.NewGuid().ToString();
-                _excelCache[downloadId] = (excelBytes, downloadFileName);
-                
-                // Clean up old entries (keep only the last 10)
-                if (_excelCache.Count > 10)
-                {
-                    var oldestKeys = _excelCache.Keys.Take(_excelCache.Count - 10).ToList();
-                    foreach (var key in oldestKeys)
-                    {
-                        _excelCache.Remove(key);
-                    }
-                }
+                // Cache Excel data for download
+                var downloadId = CacheExcelFile(excelBytes, downloadFileName);
 
                 return Ok(new
                 {
@@ -144,7 +99,7 @@ namespace ChecklistGenerator.Controllers
                     ExcelFileName = downloadFileName,
                     Message = hasProcessingIssues 
                         ? "Document processed with some limitations. See generated items for details."
-                        : "Successfully processed document using DOCX to Excel conversion.",
+                        : "Successfully processed document using AI-powered conversion.",
                     HasIssues = hasProcessingIssues
                 });
             }
@@ -154,13 +109,32 @@ namespace ChecklistGenerator.Controllers
                 return StatusCode(500, new
                 {
                     Success = false,
+                    Message = "Error processing file",
                     Error = ex.Message
                 });
             }
         }
 
+        private string CacheExcelFile(byte[] excelBytes, string fileName)
+        {
+            var downloadId = Guid.NewGuid().ToString();
+            _excelCache[downloadId] = (excelBytes, fileName);
+            
+            // Clean up old entries
+            if (_excelCache.Count > MaxCacheSize)
+            {
+                var oldestKeys = _excelCache.Keys.Take(_excelCache.Count - MaxCacheSize).ToList();
+                foreach (var key in oldestKeys)
+                {
+                    _excelCache.Remove(key);
+                }
+            }
+            
+            return downloadId;
+        }
+
         [HttpGet("sample")]
-        public IActionResult GetSampleSurvey()
+        public async Task<IActionResult> GetSampleSurvey()
         {
             var sampleItems = new List<ChecklistItem>
             {
@@ -188,7 +162,7 @@ namespace ChecklistGenerator.Controllers
                 }
             };
 
-            var surveyJson = _surveyConverter.ConvertToSurveyJS(sampleItems, "Sample Survey");
+            var surveyJson = await _surveyConverter.ConvertToSurveyJSAsync(sampleItems, "Sample Survey");
 
             return Ok(new
             {
@@ -206,112 +180,54 @@ namespace ChecklistGenerator.Controllers
                 
                 if (!Directory.Exists(samplesPath))
                 {
-                    return Ok(new
-                    {
-                        Success = true,
-                        Samples = new List<object>()
-                    });
+                    return Ok(new { Success = true, Samples = Array.Empty<object>() });
                 }
 
                 var sampleFiles = Directory.GetFiles(samplesPath, "*.docx")
                     .Select(filePath =>
                     {
                         var fileName = Path.GetFileName(filePath);
-                        var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
-                        
-                        // Generate display info from filename
-                        var displayInfo = GenerateDisplayInfo(fileNameWithoutExtension);
+                        var displayName = GenerateDisplayName(fileName);
                         
                         return new
                         {
                             FileName = fileName,
-                            DisplayName = displayInfo.DisplayName,
-                            Description = displayInfo.Description,
-                            Icon = displayInfo.Icon,
+                            DisplayName = displayName,
+                            Description = $"Sample document: {displayName}",
+                            Icon = "📄",
                             DownloadUrl = $"/samples/{fileName}"
                         };
                     })
                     .OrderBy(f => f.DisplayName)
                     .ToList();
 
-                return Ok(new
-                {
-                    Success = true,
-                    Samples = sampleFiles
-                });
+                return Ok(new { Success = true, Samples = sampleFiles });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving sample documents");
-                return StatusCode(500, new
-                {
-                    Success = false,
-                    Error = ex.Message
-                });
+                return StatusCode(500, new { Success = false, Message = "Error retrieving samples", Error = ex.Message });
             }
         }
 
-        private (string DisplayName, string Description, string Icon) GenerateDisplayInfo(string fileName)
+        private static string GenerateDisplayName(string fileName)
         {
-            // Generate display information based on filename patterns
-            var lowerFileName = fileName.ToLower();
+            var nameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
             
-            if (lowerFileName.Contains("ucits"))
+            // Handle UCITS specifically
+            if (nameWithoutExtension.Contains("ucits", StringComparison.OrdinalIgnoreCase))
             {
-                // Check for section numbers
-                var sectionMatch = System.Text.RegularExpressions.Regex.Match(fileName, @"section(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                if (sectionMatch.Success)
-                {
-                    return (
-                        $"� UCITS Section {sectionMatch.Groups[1].Value}",
-                        $"UCITS application section {sectionMatch.Groups[1].Value} document",
-                        "�"
-                    );
-                }
-                else
-                {
-                    return (
-                        "� UCITS Application",
-                        "Complex application form with sections",
-                        "�"
-                    );
-                }
-            }
-            else if (lowerFileName.Contains("fund") && lowerFileName.Contains("regulation"))
-            {
-                return (
-                    "💰 Fund Regulation",
-                    "Money market fund regulation checklist",
-                    "💰"
-                );
-            }
-            else if (lowerFileName.Contains("money") && lowerFileName.Contains("market"))
-            {
-                return (
-                    "� Money Market Fund",
-                    "Money market fund regulation checklist",
-                    "�"
-                );
-            }
-            else if (lowerFileName.Contains("basic") || lowerFileName.Contains("simple"))
-            {
-                return (
-                    "� Basic Checklist",
-                    "Simple checklist format for testing",
-                    "�"
-                );
+                var sectionMatch = System.Text.RegularExpressions.Regex.Match(
+                    nameWithoutExtension, @"section(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                
+                return sectionMatch.Success 
+                    ? $"UCITS Section {sectionMatch.Groups[1].Value}"
+                    : "UCITS Application";
             }
             
-            // Default fallback
-            var displayName = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(
-                fileName.Replace("-", " ").Replace("_", " ")
-            );
-            
-            return (
-                $"📄 {displayName}",
-                "Sample document for testing the converter",
-                "📄"
-            );
+            // Default: title case conversion
+            return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(
+                nameWithoutExtension.Replace("-", " ").Replace("_", " "));
         }
 
         [HttpPost("saveResults")]

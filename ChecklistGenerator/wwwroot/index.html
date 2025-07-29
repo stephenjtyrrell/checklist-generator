@@ -138,23 +138,123 @@
         
         .loading {
             text-align: center;
-            padding: 20px;
+            padding: 30px;
             display: none;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            margin: 20px 0;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .spinner-container {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 20px;
         }
         
         .spinner {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #007bff;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 50px;
+            height: 50px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
+            margin: 0 auto;
+            position: relative;
+        }
+        
+        .spinner::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            background: #007bff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: pulse 1.5s ease-in-out infinite;
         }
         
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 0.6; transform: translate(-50%, -50%) scale(0.8); }
+            100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        
+        .loading-steps {
+            margin-top: 20px;
+            text-align: left;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .loading-step {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 8px 12px;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .loading-step.active {
+            background-color: #e3f2fd;
+            border-left: 4px solid #007bff;
+            font-weight: 500;
+        }
+        
+        .loading-step.completed {
+            background-color: #e8f5e8;
+            border-left: 4px solid #28a745;
+            color: #155724;
+        }
+        
+        .loading-step.pending {
+            background-color: #f8f9fa;
+            border-left: 4px solid #dee2e6;
+            color: #6c757d;
+        }
+        
+        .step-icon {
+            margin-right: 10px;
+            font-size: 16px;
+            min-width: 20px;
+        }
+        
+        .step-text {
+            flex-grow: 1;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #0056b3);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+            width: 0%;
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: -200px 0; }
+            100% { background-position: 200px 0; }
         }
         
         .info-section {
@@ -346,8 +446,38 @@
         </div>
         
         <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p>Processing your document...</p>
+            <div class="spinner-container">
+                <div class="spinner"></div>
+            </div>
+            <h4 id="loadingTitle">🔄 Processing your document...</h4>
+            <p id="loadingMessage">Please wait while we analyze and convert your checklist</p>
+            
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            
+            <div class="loading-steps" id="loadingSteps">
+                <div class="loading-step pending" id="step1">
+                    <span class="step-icon">📄</span>
+                    <span class="step-text">Reading document structure</span>
+                </div>
+                <div class="loading-step pending" id="step2">
+                    <span class="step-icon">🔍</span>
+                    <span class="step-text">Analyzing content with AI</span>
+                </div>
+                <div class="loading-step pending" id="step3">
+                    <span class="step-icon">📝</span>
+                    <span class="step-text">Extracting checklist items</span>
+                </div>
+                <div class="loading-step pending" id="step4">
+                    <span class="step-icon">⚙️</span>
+                    <span class="step-text">Converting to SurveyJS format</span>
+                </div>
+                <div class="loading-step pending" id="step5">
+                    <span class="step-icon">📊</span>
+                    <span class="step-text">Generating Excel export</span>
+                </div>
+            </div>
         </div>
         
         <div class="result-section" id="resultSection">
@@ -390,6 +520,97 @@
         let currentJsonOutput = '';
         let currentSurvey = null;
         let surveyResults = {};
+        let progressInterval = null;
+
+        // Progress simulation for better UX
+        function simulateProgress() {
+            const steps = ['step1', 'step2', 'step3', 'step4', 'step5'];
+            const progressFill = document.getElementById('progressFill');
+            let currentStep = 0;
+            let progress = 0;
+            
+            // Clear any existing interval
+            if (progressInterval) {
+                clearInterval(progressInterval);
+            }
+            
+            progressInterval = setInterval(() => {
+                // Update progress bar
+                progress += Math.random() * 15 + 5; // Random progress increment
+                if (progress > 90) progress = 90; // Don't reach 100% until done
+                progressFill.style.width = progress + '%';
+                
+                // Update steps
+                if (currentStep < steps.length && progress > (currentStep + 1) * 18) {
+                    // Mark current step as completed
+                    if (currentStep > 0) {
+                        const prevStep = document.getElementById(steps[currentStep - 1]);
+                        prevStep.className = 'loading-step completed';
+                        prevStep.querySelector('.step-icon').textContent = '✅';
+                    }
+                    
+                    // Mark next step as active
+                    const activeStep = document.getElementById(steps[currentStep]);
+                    activeStep.className = 'loading-step active';
+                    activeStep.querySelector('.step-icon').textContent = '⏳';
+                    
+                    currentStep++;
+                }
+            }, 800 + Math.random() * 400); // Random interval between 800-1200ms
+        }
+        
+        function completeProgress() {
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+            
+            // Complete all steps
+            const steps = ['step1', 'step2', 'step3', 'step4', 'step5'];
+            steps.forEach(stepId => {
+                const step = document.getElementById(stepId);
+                step.className = 'loading-step completed';
+                step.querySelector('.step-icon').textContent = '✅';
+            });
+            
+            // Complete progress bar
+            const progressFill = document.getElementById('progressFill');
+            progressFill.style.width = '100%';
+            
+            // Update loading message
+            document.getElementById('loadingTitle').textContent = '✅ Processing Complete!';
+            document.getElementById('loadingMessage').textContent = 'Your document has been successfully converted';
+            
+            // Hide loading after a brief delay
+            setTimeout(() => {
+                showLoading(false);
+            }, 1500);
+        }
+        
+        function resetProgress() {
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+            
+            // Reset all steps to pending
+            const steps = ['step1', 'step2', 'step3', 'step4', 'step5'];
+            const stepIcons = ['📄', '🔍', '📝', '⚙️', '📊'];
+            
+            steps.forEach((stepId, index) => {
+                const step = document.getElementById(stepId);
+                step.className = 'loading-step pending';
+                step.querySelector('.step-icon').textContent = stepIcons[index];
+            });
+            
+            // Reset progress bar
+            const progressFill = document.getElementById('progressFill');
+            progressFill.style.width = '0%';
+            
+            // Reset loading messages
+            document.getElementById('loadingTitle').textContent = '🔄 Processing your document...';
+            document.getElementById('loadingMessage').textContent = 'Please wait while we analyze and convert your checklist';
+        }
 
         async function loadSampleDocuments() {
             try {
@@ -450,9 +671,13 @@
             const formData = new FormData();
             formData.append('file', file);
             
+            resetProgress();
             showLoading(true);
             hideResult();
             hideSurvey();
+            
+            // Start progress simulation
+            simulateProgress();
             
             try {
                 const response = await fetch('/api/checklist/upload', {
@@ -462,78 +687,110 @@
                 
                 const result = await response.json();
                 
-                if (result.success) {
-                    var message = `Found ${result.itemCount} checklist items and converted them to SurveyJS format.`;
-                    if (result.excelDownloadId && result.excelFileName) {
-                        message += `<br><br>📊 Excel file ready for download: ${result.excelFileName}`;
-                        message += `<br>📥 <a href="/api/checklist/downloadExcel/${result.excelDownloadId}" download="${result.excelFileName}">Download Excel File</a>`;
+                // Complete progress animation
+                completeProgress();
+                
+                // Wait for completion animation to finish
+                setTimeout(() => {
+                    if (result.success) {
+                        var message = `Found ${result.itemCount} checklist items and converted them to SurveyJS format.`;
+                        if (result.excelDownloadId && result.excelFileName) {
+                            message += `<br><br>📊 Excel file ready for download: ${result.excelFileName}`;
+                            message += `<br>📥 <a href="/api/checklist/downloadExcel/${result.excelDownloadId}" download="${result.excelFileName}">Download Excel File</a>`;
+                        }
+                        if (result.message) {
+                            message += `<br><br>${result.message}`;
+                        }
+                        
+                        var resultType = result.hasIssues ? 'warning' : 'success';
+                        var icon = result.hasIssues ? '⚠️' : '✅';
+                        
+                        showResult(
+                            `${icon} Processed "${result.fileName}"`,
+                            message,
+                            result.surveyJS,
+                            resultType
+                        );
+                    } else {
+                        showResult(
+                            '❌ Processing Failed',
+                            result.error || 'An unknown error occurred.',
+                            '',
+                            'error'
+                        );
                     }
-                    if (result.message) {
-                        message += `<br><br>${result.message}`;
-                    }
-                    
-                    var resultType = result.hasIssues ? 'warning' : 'success';
-                    var icon = result.hasIssues ? '⚠️' : '✅';
-                    
+                }, 1500);
+                
+            } catch (error) {
+                completeProgress();
+                setTimeout(() => {
                     showResult(
-                        `${icon} Processed "${result.fileName}"`,
-                        message,
-                        result.surveyJS,
-                        resultType
-                    );
-                } else {
-                    showResult(
-                        '❌ Processing Failed',
-                        result.error || 'An unknown error occurred.',
+                        '❌ Upload Failed',
+                        'Network error: ' + error.message,
                         '',
                         'error'
                     );
-                }
-            } catch (error) {
-                showResult(
-                    '❌ Upload Failed',
-                    'Network error: ' + error.message,
-                    '',
-                    'error'
-                );
-            } finally {
-                showLoading(false);
+                }, 1500);
             }
         }
         
         async function loadSample() {
+            resetProgress();
             showLoading(true);
             hideResult();
             hideSurvey();
+            
+            // Simulate faster progress for sample loading
+            const progressFill = document.getElementById('progressFill');
+            const loadingTitle = document.getElementById('loadingTitle');
+            const loadingMessage = document.getElementById('loadingMessage');
+            
+            loadingTitle.textContent = '📄 Loading Sample Survey...';
+            loadingMessage.textContent = 'Preparing demonstration content';
+            
+            let progress = 0;
+            const sampleInterval = setInterval(() => {
+                progress += 20;
+                progressFill.style.width = progress + '%';
+                if (progress >= 100) {
+                    clearInterval(sampleInterval);
+                }
+            }, 200);
             
             try {
                 const response = await fetch('/api/checklist/sample');
                 const result = await response.json();
                 
-                if (result.success) {
+                // Wait for progress animation
+                setTimeout(() => {
+                    if (result.success) {
+                        showResult(
+                            '📄 Sample Survey Loaded',
+                            'This is a sample SurveyJS form to demonstrate the output format.',
+                            result.surveyJS,
+                            'success'
+                        );
+                    } else {
+                        showResult(
+                            '❌ Failed to Load Sample',
+                            'Could not load sample survey.',
+                            '',
+                            'error'
+                        );
+                    }
+                    showLoading(false);
+                }, 1000);
+                
+            } catch (error) {
+                setTimeout(() => {
                     showResult(
-                        '📄 Sample Survey Loaded',
-                        'This is a sample SurveyJS form to demonstrate the output format.',
-                        result.surveyJS,
-                        'success'
-                    );
-                } else {
-                    showResult(
-                        '❌ Failed to Load Sample',
-                        'Could not load sample survey.',
+                        '❌ Load Failed',
+                        'Network error: ' + error.message,
                         '',
                         'error'
                     );
-                }
-            } catch (error) {
-                showResult(
-                    '❌ Load Failed',
-                    'Network error: ' + error.message,
-                    '',
-                    'error'
-                );
-            } finally {
-                showLoading(false);
+                    showLoading(false);
+                }, 1000);
             }
         }
         
@@ -691,10 +948,23 @@
                 loading.style.display = 'block';
                 uploadBtn.disabled = true;
                 sampleBtn.disabled = true;
+                uploadBtn.textContent = '⏳ Processing...';
+                sampleBtn.textContent = '⏳ Loading...';
+                
+                // Scroll to loading section
+                loading.scrollIntoView({ behavior: 'smooth' });
             } else {
                 loading.style.display = 'none';
                 uploadBtn.disabled = false;
                 sampleBtn.disabled = false;
+                uploadBtn.textContent = '🚀 Convert to SurveyJS';
+                sampleBtn.textContent = '📄 Load Sample Survey';
+                
+                // Clean up any running intervals
+                if (progressInterval) {
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                }
             }
         }
         

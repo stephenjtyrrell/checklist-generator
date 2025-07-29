@@ -1,21 +1,23 @@
 using ChecklistGenerator.Services;
-using Microsoft.AspNetCore.Server.IIS;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
 builder.Services.AddControllers();
+
+// Configure HTTP client for Gemini service with timeout
+builder.Services.AddHttpClient<GeminiService>(client =>
+{
+    client.Timeout = TimeSpan.FromMinutes(5);
+});
+
+// Register application services
+builder.Services.AddScoped<GeminiService>();
 builder.Services.AddScoped<DocxToExcelConverter>();
 builder.Services.AddScoped<ExcelProcessor>();
 builder.Services.AddScoped<SurveyJSConverter>();
 
-// Configure file upload limits
-builder.Services.Configure<IISServerOptions>(options =>
-{
-    options.MaxRequestBodySize = 50 * 1024 * 1024; // 50MB
-});
-
-// Add CORS for development and Codespaces
+// Configure CORS for cross-origin requests
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -37,10 +39,12 @@ if (app.Environment.IsDevelopment())
 app.UseStaticFiles();
 app.UseCors();
 app.UseRouting();
-
 app.MapControllers();
 
-// Serve the default page
+// Health check endpoint
+app.MapGet("/health", () => Results.Text("healthy"));
+
+// Default route
 app.MapGet("/", () => Results.Redirect("/index.html"));
 
 app.Run();

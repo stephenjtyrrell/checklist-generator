@@ -18,7 +18,7 @@ namespace ChecklistGenerator.Services
             _apiKey = configuration["GeminiApiKey"] ?? throw new ArgumentException("GeminiApiKey not configured");
         }
 
-        public async Task<List<ChecklistItem>> ConvertDocumentToChecklistAsync(string documentContent, string fileName = "")
+        public virtual async Task<List<ChecklistItem>> ConvertDocumentToChecklistAsync(string documentContent, string fileName = "")
         {
             try
             {
@@ -84,7 +84,7 @@ Return only the JSON array, no additional text or formatting.";
             }
         }
 
-        public async Task<string> ConvertChecklistToSurveyJSAsync(List<ChecklistItem> checklistItems, string title = "Generated Survey")
+        public virtual async Task<string> ConvertChecklistToSurveyJSAsync(List<ChecklistItem> checklistItems, string title = "Generated Survey")
         {
             try
             {
@@ -173,7 +173,7 @@ Return only the JSON configuration, no additional text or formatting.";
             }
         }
 
-        public async Task<List<ChecklistItem>> EnhanceChecklistAsync(List<ChecklistItem> existingItems)
+        public virtual async Task<List<ChecklistItem>> EnhanceChecklistAsync(List<ChecklistItem> existingItems)
         {
             try
             {

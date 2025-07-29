@@ -501,6 +501,9 @@ For automated Azure deployment, configure these secrets in GitHub repository set
 #### 2. `AZURE_CONTAINER_REGISTRY_NAME`
 Your Azure Container Registry name (e.g., "checklistgen")
 
+#### 3. `GEMINI_API_KEY`
+Your Google Gemini API key for AI-powered document processing
+
 ### Create Azure Resources
 
 ```bash
@@ -531,6 +534,7 @@ az container create \
   --name checklist-generator \
   --image YOUR_REGISTRY.azurecr.io/checklist-generator:latest \
   --ports 80 443 \
+  --environment-variables GeminiApiKey="YOUR_GEMINI_API_KEY" \
   --dns-name-label checklist-generator-stable
 ```
 

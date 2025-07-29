@@ -5,7 +5,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
 builder.Services.AddControllers();
-builder.Services.AddHttpClient<GeminiService>();
+builder.Services.AddHttpClient<GeminiService>(client =>
+{
+    client.Timeout = TimeSpan.FromMinutes(5); // 5 minute timeout for AI requests
+});
 builder.Services.AddScoped<GeminiService>();
 builder.Services.AddScoped<DocxToExcelConverter>();
 builder.Services.AddScoped<ExcelProcessor>();

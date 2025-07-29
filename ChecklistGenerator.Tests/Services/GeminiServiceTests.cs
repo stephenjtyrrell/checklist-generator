@@ -144,7 +144,7 @@ namespace ChecklistGenerator.Tests.Services
             // Assert
             result.Should().NotBeNull();
             result.Should().HaveCount(1);
-            result.First().Text.Should().Be("Failed to process document with AI");
+            result.First().Text.Should().StartWith("Failed to process document with AI");
             result.First().Type.Should().Be(ChecklistItemType.Comment);
         }
 

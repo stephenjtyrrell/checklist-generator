@@ -206,12 +206,19 @@ healthy
 
 2. **Configure the Application**:
    
-   **For Local Development:**
+   **For Local Development (Recommended - Secure):**
    ```bash
-   # Update appsettings.json
-   {
-     "GeminiApiKey": "your_actual_api_key_here"
-   }
+   # Use .NET User Secrets (keeps API key out of source control)
+   dotnet user-secrets init
+   dotnet user-secrets set "GeminiApiKey" "your_actual_api_key_here"
+   ```
+   
+   **Alternative for Local Development:**
+   ```bash
+   # Copy example file and update with your key
+   cp appsettings.example.json appsettings.local.json
+   # Edit appsettings.local.json and add your API key
+   # Note: appsettings.local.json is excluded from git
    ```
    
    **For Production/Azure:**
@@ -223,6 +230,8 @@ healthy
    az container create \
      --environment-variables GeminiApiKey="your_actual_api_key_here"
    ```
+
+   **⚠️ Security Note**: Never commit API keys to source control. The main `appsettings.json` should not contain sensitive values.
 
 3. **Verify Configuration**:
    - Upload a test DOCX file

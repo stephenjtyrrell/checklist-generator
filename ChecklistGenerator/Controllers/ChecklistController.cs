@@ -111,7 +111,7 @@ namespace ChecklistGenerator.Controllers
 
                 _logger.LogInformation($"Extracted {checklistItems.Count} checklist items");
 
-                var surveyJson = _surveyConverter.ConvertToSurveyJS(
+                var surveyJson = await _surveyConverter.ConvertToSurveyJSAsync(
                     checklistItems, 
                     Path.GetFileNameWithoutExtension(file.FileName));
 
@@ -160,7 +160,7 @@ namespace ChecklistGenerator.Controllers
         }
 
         [HttpGet("sample")]
-        public IActionResult GetSampleSurvey()
+        public async Task<IActionResult> GetSampleSurvey()
         {
             var sampleItems = new List<ChecklistItem>
             {
@@ -188,7 +188,7 @@ namespace ChecklistGenerator.Controllers
                 }
             };
 
-            var surveyJson = _surveyConverter.ConvertToSurveyJS(sampleItems, "Sample Survey");
+            var surveyJson = await _surveyConverter.ConvertToSurveyJSAsync(sampleItems, "Sample Survey");
 
             return Ok(new
             {

@@ -1,6 +1,6 @@
-# 📋 Checklist Generator
+# 📋 AI-Powered Checklist Generator
 
-A .NET 9 web application that converts DOCX documents to interactive SurveyJS forms with enterprise-grade deployment capabilities.
+A .NET 9 web application that converts DOCX documents to interactive SurveyJS forms using Google Gemini AI for intelligent document analysis and checklist generation.
 
 ![Build Status](https://github.com/stephenjtyrrell/checklist-generator/workflows/Build%20and%20Deploy%20Checklist%20Generator/badge.svg)
 ![Azure Deploy](https://github.com/stephenjtyrrell/checklist-generator/workflows/Codespace%20Auto-Deploy/badge.svg)
@@ -12,22 +12,50 @@ A .NET 9 web application that converts DOCX documents to interactive SurveyJS fo
 - **Azure URL**: https://checklist-generator-stable.eastus.azurecontainer.io
 - **HTTP Fallback**: http://checklist.stephentyrrell.ie
 
-*Upload your DOCX files and convert them to interactive SurveyJS forms instantly!*
+*Upload your DOCX files and convert them to interactive SurveyJS forms instantly using AI-powered analysis!*
 
-> **Note**: This application intelligently converts Word documents (.docx) to Excel format and then processes them to extract checklist items, questions, and form elements, generating interactive SurveyJS forms with real-time preview capabilities.
+> **🤖 AI-Enhanced**: This application now uses Google Gemini AI to intelligently analyze document content, extract actionable items, and generate comprehensive checklists. No more regex patterns or static parsing - the AI understands context and creates meaningful, structured forms from any document type.
+
+---
+
+## ✨ AI-Powered Features
+
+### 🎯 Complete AI Integration (Recently Updated)
+All document processing has been migrated from static regex patterns to **Google Gemini AI** for intelligent analysis:
+
+- **🧠 Intelligent Document Analysis**: Gemini AI understands document structure and content context
+- **📝 Smart Checklist Generation**: Automatically identifies actionable items, requirements, and compliance points
+- **🎯 Context-Aware Processing**: AI preserves important regulatory and procedural information
+- **🔄 Enhanced SurveyJS Conversion**: Better form generation with appropriate question types
+- **📊 Structured Excel Output**: AI-generated Excel files with proper categorization and formatting
+
+### 🔧 Technical AI Implementation
+- **GeminiService**: Centralized AI service using HTTP REST API integration
+- **ExcelProcessor**: AI-powered Excel content analysis and checklist extraction
+- **SurveyJSConverter**: Intelligent form generation with question type detection
+- **DocxToExcelConverter**: Enhanced document processing with AI-driven content understanding
+- **Error Handling**: Robust fallbacks and graceful degradation when AI is unavailable
+
+### 🚀 Benefits Over Previous System
+- **No More Regex**: Replaced complex pattern matching with intelligent content understanding
+- **Flexible Processing**: Works with any document structure or content type
+- **Better Accuracy**: AI understands context, relationships, and document intent
+- **Improved Output**: More relevant and actionable checklist items
+- **Future-Proof**: Easy to enhance and adapt AI prompts for specific use cases
 
 ---
 
 ## 📚 Table of Contents
 
 1. [Quick Start](#-quick-start)
-2. [Features](#-features)
-3. [API Endpoints](#-api-endpoints)
-4. [Architecture](#-architecture)
-5. [Document Processing Workflow](#-document-processing-workflow)
-6. [Deployment Options](#-deployment-options)
-7. [Local Development](#-local-development)
-8. [Azure Setup](#-azure-setup)
+2. [AI Configuration](#-ai-configuration)
+3. [Features](#-features)
+4. [API Endpoints](#-api-endpoints)
+5. [Architecture](#-architecture)
+6. [Document Processing Workflow](#-document-processing-workflow)
+7. [Deployment Options](#-deployment-options)
+8. [Local Development](#-local-development)
+9. [Azure Setup](#-azure-setup)
 9. [Custom Domain Configuration](#-custom-domain-configuration)
 10. [Cloudflare Integration](#-cloudflare-integration)
 11. [GitHub Codespaces](#-github-codespaces)
@@ -164,6 +192,63 @@ healthy
   "details": "Additional error information"
 }
 ```
+
+---
+
+## 🤖 AI Configuration
+
+### Getting Started with Gemini AI
+
+1. **Get a Gemini API Key**:
+   - Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
+   - Create a new API key
+   - Copy the key
+
+2. **Configure the Application**:
+   
+   **For Local Development:**
+   ```bash
+   # Update appsettings.json
+   {
+     "GeminiApiKey": "your_actual_api_key_here"
+   }
+   ```
+   
+   **For Production/Azure:**
+   ```bash
+   # Set environment variable
+   export GeminiApiKey="your_actual_api_key_here"
+   
+   # Or in Azure Container Instances
+   az container create \
+     --environment-variables GeminiApiKey="your_actual_api_key_here"
+   ```
+
+3. **Verify Configuration**:
+   - Upload a test DOCX file
+   - Check logs for "processing with Gemini AI" messages
+   - Confirm AI-generated checklist items in response
+
+### AI Processing Features
+
+**Core Services Enhanced with AI:**
+- **GeminiService.cs**: New centralized AI service handling all Gemini API interactions
+- **ExcelProcessor.cs**: Completely rewritten to use AI for content extraction and analysis
+- **SurveyJSConverter.cs**: Enhanced with AI-powered form generation and question type detection
+- **DocxToExcelConverter.cs**: Upgraded with AI-driven document understanding and structuring
+
+**AI Capabilities:**
+- **Document Analysis**: Extracts meaningful content from complex documents with context understanding
+- **Checklist Generation**: Creates actionable items with proper categorization and priority
+- **SurveyJS Conversion**: Generates appropriate question types and logical form structures
+- **Content Interpretation**: Understands regulatory text, procedures, and compliance requirements
+- **Error Handling**: Graceful fallbacks when AI processing fails, with comprehensive logging
+
+**Performance & Reliability:**
+- **Async Processing**: Non-blocking AI calls for better application responsiveness
+- **HTTP Client Pool**: Efficient connection management for Gemini API requests
+- **Retry Logic**: Built-in error handling and retry mechanisms
+- **Fallback Systems**: Graceful degradation when AI services are unavailable
 
 ---
 

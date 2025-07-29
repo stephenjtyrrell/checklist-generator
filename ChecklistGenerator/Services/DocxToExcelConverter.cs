@@ -1,16 +1,19 @@
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ClosedXML.Excel;
+using System.Text;
 
 namespace ChecklistGenerator.Services
 {
     public class DocxToExcelConverter
     {
         private readonly ILogger<DocxToExcelConverter> _logger;
+        private readonly GeminiService _geminiService;
 
-        public DocxToExcelConverter(ILogger<DocxToExcelConverter> logger)
+        public DocxToExcelConverter(ILogger<DocxToExcelConverter> logger, GeminiService geminiService)
         {
             _logger = logger;
+            _geminiService = geminiService;
         }
 
         public async Task<(Stream ExcelStream, byte[] ExcelBytes, string FileName)> ConvertDocxToExcelAsync(Stream docxStream, string originalFileName)
@@ -35,14 +38,14 @@ namespace ChecklistGenerator.Services
                         await docxStream.CopyToAsync(fileStream);
                     }
 
-                    // Run the integrated conversion to temporary Excel file
-                    await ConvertDocxToExcel(tempDocxPath, tempExcelPath);
+                    // Run the AI-powered conversion to temporary Excel file
+                    await ConvertDocxToExcelWithAI(tempDocxPath, tempExcelPath, originalFileName);
 
                     // Read the Excel file into memory
                     var excelBytes = await File.ReadAllBytesAsync(tempExcelPath);
                     var excelStream = new MemoryStream(excelBytes);
                     
-                    _logger.LogInformation($"Excel conversion completed in memory. Download filename: {downloadFileName}");
+                    _logger.LogInformation($"AI-powered Excel conversion completed. Download filename: {downloadFileName}");
                     
                     return (excelStream, excelBytes, downloadFileName);
                 }
@@ -62,104 +65,139 @@ namespace ChecklistGenerator.Services
             }
         }
 
-        private async Task ConvertDocxToExcel(string inputPath, string outputPath)
+        private async Task ConvertDocxToExcelWithAI(string inputPath, string outputPath, string originalFileName)
         {
-            await Task.Run(() =>
+            try
             {
-                var rawRows = new List<List<string>>();
-
-                // Extract table data from DOCX
-                using (var doc = WordprocessingDocument.Open(inputPath, false))
+                // Extract text content from DOCX
+                var documentContent = ExtractTextFromDocx(inputPath);
+                
+                if (string.IsNullOrWhiteSpace(documentContent))
                 {
-                    var body = doc.MainDocumentPart?.Document?.Body;
-                    if (body != null)
-                    {
-                        // First, extract tables
-                        foreach (var tbl in body.Elements<Table>())
-                        {
-                            foreach (var tr in tbl.Elements<TableRow>())
-                            {
-                                var row = tr.Elements<TableCell>()
-                                    .Select(tc => string.Concat(tc.Descendants<Text>().Select(t => t.Text)).Trim())
-                                    .ToList();
-                                if (row.Any(c => !string.IsNullOrWhiteSpace(c)))
-                                    rawRows.Add(row);
-                            }
-                        }
-
-                        // If no tables found, extract paragraphs as single-column data
-                        if (rawRows.Count == 0)
-                        {
-                            rawRows.Add(new List<string> { "Content" }); // Header
-                            
-                            foreach (var paragraph in body.Elements<Paragraph>())
-                            {
-                                var text = string.Concat(paragraph.Descendants<Text>().Select(t => t.Text)).Trim();
-                                if (!string.IsNullOrWhiteSpace(text))
-                                {
-                                    rawRows.Add(new List<string> { text });
-                                }
-                            }
-                        }
-                    }
+                    throw new InvalidOperationException("No readable content found in DOCX file");
                 }
 
-                if (rawRows.Count == 0)
-                {
-                    // Create a basic structure if no content found
-                    rawRows.Add(new List<string> { "Content" });
-                    rawRows.Add(new List<string> { "No content found in document" });
-                }
+                _logger.LogInformation($"Extracted {documentContent.Length} characters from DOCX, processing with Gemini AI");
 
-                // Process the data
-                var header = rawRows[0];
-                var processed = new List<List<string>>();
-                List<string>? lastRow = null;
+                // Use Gemini AI to convert document to checklist items
+                var checklistItems = await _geminiService.ConvertDocumentToChecklistAsync(documentContent, originalFileName);
 
-                for (int i = 1; i < rawRows.Count; i++)
-                {
-                    var row = new List<string>(rawRows[i]);
-                    while (row.Count < header.Count)
-                        row.Add(string.Empty);
-
-                    if (string.IsNullOrWhiteSpace(row[0]))
-                    {
-                        // Merge with previous row if first column is empty
-                        if (lastRow != null)
-                        {
-                            for (int j = 1; j < row.Count; j++)
-                            {
-                                if (!string.IsNullOrWhiteSpace(row[j]))
-                                    lastRow[j] = string.Join(" ", lastRow[j], row[j]).Trim();
-                            }
-                        }
-                    }
-                    else
-                    {
-                        lastRow = new List<string>(row);
-                        processed.Add(lastRow);
-                    }
-                }
-
-                // Create Excel file
+                // Create Excel file from AI-generated checklist items
                 using (var wb = new XLWorkbook())
                 {
-                    var ws = wb.Worksheets.Add("Sheet1");
+                    var ws = wb.Worksheets.Add("Checklist");
                     
-                    // Write headers
-                    for (int c = 0; c < header.Count; c++)
-                        ws.Cell(1, c + 1).Value = header[c];
-                    
-                    // Write data
-                    for (int r = 0; r < processed.Count; r++)
-                        for (int c = 0; c < processed[r].Count; c++)
-                            ws.Cell(r + 2, c + 1).Value = processed[r][c];
+                    // Set up headers
+                    ws.Cell(1, 1).Value = "ID";
+                    ws.Cell(1, 2).Value = "Item";
+                    ws.Cell(1, 3).Value = "Description";
+                    ws.Cell(1, 4).Value = "Type";
+                    ws.Cell(1, 5).Value = "Required";
+                    ws.Cell(1, 6).Value = "Status";
+
+                    // Style headers
+                    var headerRange = ws.Range(1, 1, 1, 6);
+                    headerRange.Style.Font.Bold = true;
+                    headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+
+                    // Write checklist items
+                    for (int i = 0; i < checklistItems.Count; i++)
+                    {
+                        var item = checklistItems[i];
+                        var rowIndex = i + 2;
+
+                        ws.Cell(rowIndex, 1).Value = item.Id ?? $"item_{i + 1}";
+                        ws.Cell(rowIndex, 2).Value = item.Text ?? "";
+                        ws.Cell(rowIndex, 3).Value = item.Description ?? "";
+                        ws.Cell(rowIndex, 4).Value = item.Type.ToString();
+                        ws.Cell(rowIndex, 5).Value = item.IsRequired ? "Yes" : "No";
+                        ws.Cell(rowIndex, 6).Value = ""; // Empty status column for user to fill
+                    }
+
+                    // Auto-fit columns
+                    ws.ColumnsUsed().AdjustToContents();
+
+                    // Add some basic formatting
+                    ws.Column(2).Width = 50; // Make Item column wider
+                    ws.Column(3).Width = 30; // Make Description column wider
                     
                     wb.SaveAs(outputPath);
                 }
 
-                _logger.LogInformation($"Successfully converted DOCX to Excel: {outputPath}");
-            });
+                _logger.LogInformation($"Successfully created Excel file with {checklistItems.Count} AI-generated checklist items");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in AI-powered DOCX to Excel conversion");
+                
+                // Fallback: create basic Excel with error message
+                using (var wb = new XLWorkbook())
+                {
+                    var ws = wb.Worksheets.Add("Error");
+                    ws.Cell(1, 1).Value = "Error";
+                    ws.Cell(1, 2).Value = "Message";
+                    ws.Cell(2, 1).Value = "Conversion Failed";
+                    ws.Cell(2, 2).Value = ex.Message;
+                    wb.SaveAs(outputPath);
+                }
+                
+                throw;
+            }
+        }
+
+        private string ExtractTextFromDocx(string inputPath)
+        {
+            var contentBuilder = new StringBuilder();
+
+            using (var doc = WordprocessingDocument.Open(inputPath, false))
+            {
+                var body = doc.MainDocumentPart?.Document?.Body;
+                if (body != null)
+                {
+                    // Extract from tables first
+                    foreach (var table in body.Elements<Table>())
+                    {
+                        contentBuilder.AppendLine("=== TABLE ===");
+                        foreach (var row in table.Elements<TableRow>())
+                        {
+                            var cellTexts = row.Elements<TableCell>()
+                                .Select(cell => string.Concat(cell.Descendants<Text>().Select(t => t.Text)).Trim())
+                                .Where(text => !string.IsNullOrWhiteSpace(text));
+                            
+                            if (cellTexts.Any())
+                            {
+                                contentBuilder.AppendLine(string.Join(" | ", cellTexts));
+                            }
+                        }
+                        contentBuilder.AppendLine();
+                    }
+
+                    // Extract from paragraphs
+                    foreach (var paragraph in body.Elements<Paragraph>())
+                    {
+                        var text = string.Concat(paragraph.Descendants<Text>().Select(t => t.Text)).Trim();
+                        if (!string.IsNullOrWhiteSpace(text))
+                        {
+                            contentBuilder.AppendLine(text);
+                        }
+                    }
+
+                    // Extract from lists
+                    foreach (var numbering in body.Descendants<NumberingProperties>())
+                    {
+                        var listItems = numbering.Ancestors<Paragraph>()
+                            .Select(p => string.Concat(p.Descendants<Text>().Select(t => t.Text)).Trim())
+                            .Where(text => !string.IsNullOrWhiteSpace(text));
+                        
+                        foreach (var item in listItems)
+                        {
+                            contentBuilder.AppendLine($"• {item}");
+                        }
+                    }
+                }
+            }
+
+            return contentBuilder.ToString();
         }
     }
 }

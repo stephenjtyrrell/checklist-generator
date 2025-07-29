@@ -5,6 +5,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
 builder.Services.AddControllers();
+builder.Services.AddHttpClient<GeminiService>();
+builder.Services.AddScoped<GeminiService>();
 builder.Services.AddScoped<DocxToExcelConverter>();
 builder.Services.AddScoped<ExcelProcessor>();
 builder.Services.AddScoped<SurveyJSConverter>();

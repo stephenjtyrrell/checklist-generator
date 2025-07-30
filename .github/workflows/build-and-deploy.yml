@@ -198,7 +198,7 @@ jobs:
           --ports 80 443 \
           --protocol TCP \
           --restart-policy Always \
-          --environment-variables ASPNETCORE_URLS=http://127.0.0.1:5000 GeminiApiKey="${{ secrets.GEMINI_API_KEY }}" \
+          --environment-variables ASPNETCORE_URLS=http://127.0.0.1:5000 \
           --dns-name-label checklist-generator-stable
     
     - name: 🌐 Get deployment URL

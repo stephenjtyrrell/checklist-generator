@@ -1,6 +1,6 @@
 # 📋 AI-Powered Checklist Generator
 
-A .NET 9 web application that converts DOCX documents to interactive SurveyJS forms using Google Gemini AI for intelligent document analysis and checklist generation.
+A .NET 9 web application that converts PDF documents to interactive SurveyJS forms using **Azure AI Document Intelligence** for advanced document parsing and intelligent checklist generation.
 
 ![Build Status](https://github.com/stephenjtyrrell/checklist-generator/workflows/Build%20and%20Deploy%20Checklist%20Generator/badge.svg)
 ![Azure Deploy](https://github.com/stephenjtyrrell/checklist-generator/workflows/Codespace%20Auto-Deploy/badge.svg)
@@ -12,32 +12,32 @@ A .NET 9 web application that converts DOCX documents to interactive SurveyJS fo
 - **Azure URL**: https://checklist-generator-stable.eastus.azurecontainer.io
 - **HTTP Fallback**: http://checklist.stephentyrrell.ie
 
-*Upload your DOCX files and convert them to interactive SurveyJS forms instantly using AI-powered analysis!*
+*Upload your PDF files and convert them to interactive SurveyJS forms instantly using AI-powered document analysis!*
 
-> **🤖 AI-Enhanced**: This application now uses Google Gemini AI to intelligently analyze document content, extract actionable items, and generate comprehensive checklists. No more regex patterns or static parsing - the AI understands context and creates meaningful, structured forms from any document type.
+> **🤖 AI Enhancement**: This application uses **Azure AI Document Intelligence** for superior document structure extraction and intelligent content understanding. The result is highly accurate document parsing with context-aware checklist generation that understands complex document layouts, tables, and hierarchical content.
 
 ---
 
 ## ✨ AI-Powered Features
 
-### 🎯 Complete AI Integration (Recently Updated)
-All document processing has been migrated from static regex patterns to **Google Gemini AI** for intelligent analysis:
+### 🎯 Azure AI Document Intelligence Integration
+All document processing uses **Azure AI Document Intelligence** for intelligent analysis:
 
-- **🧠 Intelligent Document Analysis**: Gemini AI understands document structure and content context
+- **🧠 Intelligent Document Analysis**: AI understands document structure and content context
 - **📝 Smart Checklist Generation**: Automatically identifies actionable items, requirements, and compliance points
 - **🎯 Context-Aware Processing**: AI preserves important regulatory and procedural information
 - **🔄 Enhanced SurveyJS Conversion**: Better form generation with appropriate question types
 - **📊 Structured Excel Output**: AI-generated Excel files with proper categorization and formatting
 
 ### 🔧 Technical AI Implementation
-- **GeminiService**: Centralized AI service using HTTP REST API integration
+- **AzureDocumentIntelligenceService**: Centralized AI service for document processing and checklist generation
 - **ExcelProcessor**: AI-powered Excel content analysis and checklist extraction
 - **SurveyJSConverter**: Intelligent form generation with question type detection
 - **DocxToExcelConverter**: Enhanced document processing with AI-driven content understanding
 - **Error Handling**: Robust fallbacks and graceful degradation when AI is unavailable
 
-### 🚀 Benefits Over Previous System
-- **No More Regex**: Replaced complex pattern matching with intelligent content understanding
+### 🚀 Benefits of AI-Powered System
+- **Pattern Recognition**: Advanced content understanding without complex regex patterns
 - **Flexible Processing**: Works with any document structure or content type
 - **Better Accuracy**: AI understands context, relationships, and document intent
 - **Improved Output**: More relevant and actionable checklist items
@@ -70,7 +70,7 @@ All document processing has been migrated from static regex patterns to **Google
 ## 🚀 Quick Start
 
 ### Option 1: Use Live Application
-Visit **https://checklist.stephentyrrell.ie** and start converting DOCX files immediately!
+Visit **https://checklist.stephentyrrell.ie** and start converting PDF files immediately!
 
 ### Option 2: GitHub Codespaces (Development)
 1. Click **Code** → **Codespaces** → **Create codespace**
@@ -94,7 +94,7 @@ Upload and convert a Word document to SurveyJS format with automatic format dete
 
 **Request:** 
 - Content-Type: multipart/form-data
-- Body: Word document file (.docx)
+- Body: PDF document file
 
 **Response:** 
 ```json
@@ -197,57 +197,42 @@ healthy
 
 ## 🤖 AI Configuration
 
-### Getting Started with Gemini AI
+This application now uses **Azure AI Document Intelligence** for advanced document parsing and intelligent checklist generation.
 
-1. **Get a Gemini API Key**:
-   - Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
-   - Create a new API key
-   - Copy the key
+### Azure AI Document Intelligence Setup
 
-2. **Configure the Application**:
+1. **Create Azure Document Intelligence Resource**:
+   - Visit [Azure Portal](https://portal.azure.com)
+   - Create a new "Document Intelligence" resource
+   - Copy the endpoint URL and API key
+
+2. **Configure Azure Document Intelligence**:
    
    **For Local Development (Recommended - Secure):**
    ```bash
    # Use .NET User Secrets (keeps API key out of source control)
-   dotnet user-secrets init
-   dotnet user-secrets set "GeminiApiKey" "your_actual_api_key_here"
-   ```
-   
-   **Alternative for Local Development:**
-   ```bash
-   # Copy example file and update with your key
-   cp appsettings.example.json appsettings.local.json
-   # Edit appsettings.local.json and add your API key
-   # Note: appsettings.local.json is excluded from git
+   dotnet user-secrets set "AzureDocumentIntelligence:Endpoint" "https://your-resource.cognitiveservices.azure.com/"
+   dotnet user-secrets set "AzureDocumentIntelligence:ApiKey" "your_azure_api_key_here"
    ```
    
    **For Production/Azure:**
    ```bash
-   # Set environment variable
-   export GeminiApiKey="your_actual_api_key_here"
-   
-   # Or in Azure Container Instances
-   az container create \
-     --environment-variables GeminiApiKey="your_actual_api_key_here"
+   # Set environment variables
+   export AzureDocumentIntelligence__Endpoint="https://your-resource.cognitiveservices.azure.com/"
+   export AzureDocumentIntelligence__ApiKey="your_azure_api_key_here"
    ```
-
-   **⚠️ Security Note**: Never commit API keys to source control. The main `appsettings.json` should not contain sensitive values.
-
-3. **Verify Configuration**:
-   - Upload a test DOCX file
-   - Check logs for "processing with Gemini AI" messages
-   - Confirm AI-generated checklist items in response
 
 ### AI Processing Features
 
 **Core Services Enhanced with AI:**
-- **GeminiService.cs**: New centralized AI service handling all Gemini API interactions
-- **ExcelProcessor.cs**: Completely rewritten to use AI for content extraction and analysis
-- **SurveyJSConverter.cs**: Enhanced with AI-powered form generation and question type detection
-- **DocxToExcelConverter.cs**: Upgraded with AI-driven document understanding and structuring
+- **AzureDocumentIntelligenceService.cs**: Service for advanced document structure analysis, content extraction, and checklist generation
+- **ExcelProcessor.cs**: Uses Azure Document Intelligence for better content extraction
+- **SurveyJSConverter.cs**: Enhanced form generation with appropriate question type detection
+- **DocxToExcelConverter.cs**: Upgraded with Azure Document Intelligence for superior document parsing
 
 **AI Capabilities:**
-- **Document Analysis**: Extracts meaningful content from complex documents with context understanding
+- **Document Structure Analysis**: Azure Document Intelligence extracts tables, paragraphs, headers, and document structure
+- **Content Understanding**: Analyzes extracted content for intelligent checklist generation
 - **Checklist Generation**: Creates actionable items with proper categorization and priority
 - **SurveyJS Conversion**: Generates appropriate question types and logical form structures
 - **Content Interpretation**: Understands regulatory text, procedures, and compliance requirements
@@ -255,7 +240,7 @@ healthy
 
 **Performance & Reliability:**
 - **Async Processing**: Non-blocking AI calls for better application responsiveness
-- **HTTP Client Pool**: Efficient connection management for Gemini API requests
+- **HTTP Client Pool**: Efficient connection management for Azure API requests
 - **Retry Logic**: Built-in error handling and retry mechanisms
 - **Fallback Systems**: Graceful degradation when AI services are unavailable
 
@@ -309,7 +294,7 @@ The application intelligently analyzes Excel data for:
 ## ✨ Features
 
 ### Core Functionality
-- **DOCX Upload**: Upload Word documents (.docx format only)
+- **PDF Upload**: Upload PDF documents for analysis
 - **Intelligent Content Extraction**: Automatically extract checklist items and questions from complex documents
 - **Excel Conversion**: Automatically converts DOCX to Excel format in memory for structured processing
 - **SurveyJS Output**: Generates industry-standard interactive forms from document content
@@ -501,9 +486,6 @@ For automated Azure deployment, configure these secrets in GitHub repository set
 #### 2. `AZURE_CONTAINER_REGISTRY_NAME`
 Your Azure Container Registry name (e.g., "checklistgen")
 
-#### 3. `GEMINI_API_KEY`
-Your Google Gemini API key for AI-powered document processing
-
 ### Create Azure Resources
 
 ```bash
@@ -534,7 +516,6 @@ az container create \
   --name checklist-generator \
   --image YOUR_REGISTRY.azurecr.io/checklist-generator:latest \
   --ports 80 443 \
-  --environment-variables GeminiApiKey="YOUR_GEMINI_API_KEY" \
   --dns-name-label checklist-generator-stable
 ```
 
@@ -880,7 +861,9 @@ gh run view RUN_ID --log
 
 ### Backend (.NET 9)
 - **ASP.NET Core 9.0**: Modern web framework with minimal APIs and high performance
-- **DocumentFormat.OpenXml 3.3.0**: Modern .docx document processing and manipulation
+- **Azure AI Document Intelligence**: Advanced document structure analysis and content extraction
+- **Azure AI Document Intelligence**: Intelligent document parsing and content understanding
+- **DocumentFormat.OpenXml 3.3.0**: Fallback .docx document processing (now replaced by Azure AI)
 - **ClosedXML 0.104.1**: Excel generation and formatting
 - **NPOI 2.7.4**: Additional Excel support and compatibility
 - **Built-in JSON Serialization**: SurveyJS format generation

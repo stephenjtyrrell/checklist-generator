@@ -1,9 +1,7 @@
 using ChecklistGenerator.Models;
 using ChecklistGenerator.Services;
 using FluentAssertions;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
 using System.Text.Json;
 using Xunit;
 
@@ -11,23 +9,11 @@ namespace ChecklistGenerator.Tests.Services
 {
     public class SurveyJSConverterTests
     {
-        private readonly Mock<GeminiService> _mockGeminiService;
         private readonly SurveyJSConverter _converter;
 
         public SurveyJSConverterTests()
         {
-            var mockHttpClient = Mock.Of<HttpClient>();
-            var mockConfiguration = new Mock<IConfiguration>();
-            
-            // Setup a valid API key for the mock configuration
-            mockConfiguration.Setup(x => x["GeminiApiKey"]).Returns("test-api-key");
-            
-            _mockGeminiService = new Mock<GeminiService>(
-                mockHttpClient,
-                mockConfiguration.Object,
-                new NullLogger<GeminiService>());
-            
-            _converter = new SurveyJSConverter(_mockGeminiService.Object, new NullLogger<SurveyJSConverter>());
+            _converter = new SurveyJSConverter(new NullLogger<SurveyJSConverter>());
         }
 
         [Fact]
@@ -35,66 +21,6 @@ namespace ChecklistGenerator.Tests.Services
         {
             // Arrange
             var checklistItems = new List<ChecklistItem>();
-            var expectedSurveyJS = """
-            {
-                "title": "Test Survey",
-                "description": "Generated from an Excel document",
-                "pages": []
-            }
-            """;
-
-            _mockGeminiService
-                .Setup(x => x.ConvertChecklistToSurveyJSAsync(checklistItems, "Test Survey"))
-                .ReturnsAsync(expectedSurveyJS);
-
-            // Act
-            var result = await _converter.ConvertToSurveyJSAsync(checklistItems, "Test Survey");
-
-            // Assert
-            result.Should().NotBeNullOrEmpty();
-            
-            var jsonDocument = JsonDocument.Parse(result);
-            jsonDocument.RootElement.GetProperty("title").GetString().Should().Be("Test Survey");
-            jsonDocument.RootElement.GetProperty("description").GetString().Should().Contain("Generated from an Excel document");
-        }
-
-        [Fact]
-        public async Task ConvertToSurveyJSAsync_WithGeminiResponse_ShouldReturnAIGeneratedSurvey()
-        {
-            // Arrange
-            var checklistItems = new List<ChecklistItem>
-            {
-                new ChecklistItem
-                {
-                    Id = "item1",
-                    Text = "Test question 1",
-                    Type = ChecklistItemType.Boolean,
-                    IsRequired = true
-                }
-            };
-
-            var expectedSurveyJS = """
-            {
-                "title": "Test Survey",
-                "pages": [
-                    {
-                        "name": "page1",
-                        "elements": [
-                            {
-                                "type": "boolean",
-                                "name": "item1",
-                                "title": "Test question 1",
-                                "isRequired": true
-                            }
-                        ]
-                    }
-                ]
-            }
-            """;
-
-            _mockGeminiService
-                .Setup(x => x.ConvertChecklistToSurveyJSAsync(checklistItems, "Test Survey"))
-                .ReturnsAsync(expectedSurveyJS);
 
             // Act
             var result = await _converter.ConvertToSurveyJSAsync(checklistItems, "Test Survey");
@@ -105,10 +31,81 @@ namespace ChecklistGenerator.Tests.Services
             var jsonDocument = JsonDocument.Parse(result);
             jsonDocument.RootElement.GetProperty("title").GetString().Should().Be("Test Survey");
             jsonDocument.RootElement.GetProperty("pages").GetArrayLength().Should().Be(1);
+            jsonDocument.RootElement.GetProperty("pages")[0].GetProperty("elements").GetArrayLength().Should().Be(0);
         }
 
         [Fact]
-        public async Task ConvertToSurveyJSAsync_GeminiServiceFails_ShouldReturnFallbackSurvey()
+        public async Task ConvertToSurveyJSAsync_WithChecklistItems_ShouldReturnValidSurveyJS()
+        {
+            // Arrange
+            var checklistItems = new List<ChecklistItem>
+            {
+                new ChecklistItem
+                {
+                    Id = "item1",
+                    Text = "Test checkbox question",
+                    Type = ChecklistItemType.Checkbox,
+                    IsRequired = true,
+                    Description = "Test description"
+                },
+                new ChecklistItem
+                {
+                    Id = "item2",
+                    Text = "Test comment question",
+                    Type = ChecklistItemType.Comment,
+                    IsRequired = false
+                },
+                new ChecklistItem
+                {
+                    Id = "item3",
+                    Text = "Test dropdown question",
+                    Type = ChecklistItemType.Dropdown,
+                    IsRequired = true,
+                    Options = new List<string> { "Option 1", "Option 2", "Option 3" }
+                }
+            };
+
+            // Act
+            var result = await _converter.ConvertToSurveyJSAsync(checklistItems, "Test Survey");
+
+            // Assert
+            result.Should().NotBeNullOrEmpty();
+            
+            var jsonDocument = JsonDocument.Parse(result);
+            jsonDocument.RootElement.GetProperty("title").GetString().Should().Be("Test Survey");
+            jsonDocument.RootElement.GetProperty("description").GetString().Should().Be("Interactive checklist generated from document analysis");
+            
+            var pages = jsonDocument.RootElement.GetProperty("pages");
+            pages.GetArrayLength().Should().Be(1);
+            
+            var elements = pages[0].GetProperty("elements");
+            elements.GetArrayLength().Should().Be(3);
+            
+            // Check first element (checkbox)
+            var firstElement = elements[0];
+            firstElement.GetProperty("type").GetString().Should().Be("boolean");
+            firstElement.GetProperty("name").GetString().Should().Be("item1");
+            firstElement.GetProperty("title").GetString().Should().Be("Test checkbox question");
+            firstElement.GetProperty("isRequired").GetBoolean().Should().BeTrue();
+            
+            // Check second element (comment)
+            var secondElement = elements[1];
+            secondElement.GetProperty("type").GetString().Should().Be("comment");
+            secondElement.GetProperty("name").GetString().Should().Be("item2");
+            secondElement.GetProperty("title").GetString().Should().Be("Test comment question");
+            secondElement.GetProperty("isRequired").GetBoolean().Should().BeFalse();
+            
+            // Check third element (dropdown)
+            var thirdElement = elements[2];
+            thirdElement.GetProperty("type").GetString().Should().Be("dropdown");
+            thirdElement.GetProperty("name").GetString().Should().Be("item3");
+            thirdElement.GetProperty("title").GetString().Should().Be("Test dropdown question");
+            thirdElement.GetProperty("isRequired").GetBoolean().Should().BeTrue();
+            thirdElement.GetProperty("choices").GetArrayLength().Should().Be(3);
+        }
+
+        [Fact]
+        public async Task ConvertToSurveyJSAsync_ShouldIncludeProgressBarAndCompletionHtml()
         {
             // Arrange
             var checklistItems = new List<ChecklistItem>
@@ -117,24 +114,20 @@ namespace ChecklistGenerator.Tests.Services
                 {
                     Id = "item1",
                     Text = "Test question",
-                    Type = ChecklistItemType.Boolean
+                    Type = ChecklistItemType.Checkbox
                 }
             };
 
-            _mockGeminiService
-                .Setup(x => x.ConvertChecklistToSurveyJSAsync(It.IsAny<List<ChecklistItem>>(), It.IsAny<string>()))
-                .ReturnsAsync(string.Empty); // Simulate failure
-
             // Act
-            var result = await _converter.ConvertToSurveyJSAsync(checklistItems, "Fallback Survey");
+            var result = await _converter.ConvertToSurveyJSAsync(checklistItems, "Progress Test");
 
             // Assert
             result.Should().NotBeNullOrEmpty();
             
             var jsonDocument = JsonDocument.Parse(result);
-            jsonDocument.RootElement.GetProperty("title").GetString().Should().Be("Fallback Survey");
-            // Should contain fallback message in description
-            jsonDocument.RootElement.GetProperty("description").GetString().Should().Contain("AI service unavailable");
+            jsonDocument.RootElement.GetProperty("showQuestionNumbers").GetString().Should().Be("off");
+            jsonDocument.RootElement.GetProperty("showProgressBar").GetString().Should().Be("top");
+            jsonDocument.RootElement.GetProperty("completedHtml").GetString().Should().Contain("Thank you for completing the checklist!");
         }
     }
 }

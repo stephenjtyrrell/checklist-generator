@@ -8,25 +8,18 @@ namespace ChecklistGenerator.Controllers
     [Route("api/[controller]")]
     public class ChecklistController : ControllerBase
     {
-        private readonly DocxToExcelConverter _docxToExcelConverter;
-        private readonly ExcelProcessor _excelProcessor;
+        private readonly IAzureDocumentIntelligenceService _azureDocumentIntelligenceService;
         private readonly SurveyJSConverter _surveyConverter;
         private readonly ILogger<ChecklistController> _logger;
         private readonly IWebHostEnvironment _webHostEnvironment;
-        
-        // In-memory cache for Excel files (for production, consider Redis)
-        private static readonly Dictionary<string, (byte[] Data, string FileName)> _excelCache = new();
-        private const int MaxCacheSize = 10;
 
         public ChecklistController(
-            DocxToExcelConverter docxToExcelConverter,
-            ExcelProcessor excelProcessor,
+            IAzureDocumentIntelligenceService azureDocumentIntelligenceService,
             SurveyJSConverter surveyConverter,
             ILogger<ChecklistController> logger,
             IWebHostEnvironment webHostEnvironment)
         {
-            _docxToExcelConverter = docxToExcelConverter;
-            _excelProcessor = excelProcessor;
+            _azureDocumentIntelligenceService = azureDocumentIntelligenceService;
             _surveyConverter = surveyConverter;
             _logger = logger;
             _webHostEnvironment = webHostEnvironment;
@@ -43,64 +36,51 @@ namespace ChecklistGenerator.Controllers
                 }
 
                 var fileName = file.FileName;
-                if (string.IsNullOrEmpty(fileName) || !fileName.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))
+                if (string.IsNullOrEmpty(fileName) || !fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
                 {
-                    return BadRequest(new { Success = false, Message = "Only .docx files are supported" });
+                    return BadRequest(new { Success = false, Message = "Only PDF files are supported" });
                 }
 
                 _logger.LogInformation("Processing file: {FileName}", file.FileName);
 
-                List<ChecklistItem> checklistItems;
-                byte[] excelBytes;
-                string downloadFileName;
+                List<ChecklistItem> formItems;
                 
                 using var stream = file.OpenReadStream();
                 
-                // Convert DOCX to Excel
-                var conversionResult = await _docxToExcelConverter.ConvertDocxToExcelAsync(stream, file.FileName ?? "unknown.docx");
-                using var excelStream = conversionResult.ExcelStream;
-                excelBytes = conversionResult.ExcelBytes;
-                downloadFileName = conversionResult.FileName;
+                // Process PDF with Azure Document Intelligence to create form fields
+                formItems = await _azureDocumentIntelligenceService.ProcessDocumentAsync(stream, file.FileName ?? "unknown.pdf");
                 
-                // Process Excel to extract checklist items
-                checklistItems = await _excelProcessor.ProcessExcelAsync(excelStream, file.FileName ?? "unknown.docx");
-                
-                if (checklistItems.Count == 0)
+                if (formItems.Count == 0)
                 {
-                    checklistItems.Add(new ChecklistItem
+                    formItems.Add(new ChecklistItem
                     {
                         Id = "no_items_found",
-                        Text = "No checklist items were found in this document",
+                        Text = "No form fields were detected in this document",
                         Type = ChecklistItemType.Comment,
                         IsRequired = false,
-                        Description = "The document may not contain recognizable checklist patterns, or may need manual review."
+                        Description = "The document may not contain recognizable form patterns, or may need manual review."
                     });
                 }
 
                 var surveyJson = await _surveyConverter.ConvertToSurveyJSAsync(
-                    checklistItems, 
-                    Path.GetFileNameWithoutExtension(file.FileName ?? "Generated Survey"));
+                    formItems, 
+                    Path.GetFileNameWithoutExtension(file.FileName ?? "Generated Form"));
 
-                var hasProcessingIssues = checklistItems.Any(item => 
+                var hasProcessingIssues = formItems.Any(item => 
                     item.Id.Contains("error", StringComparison.OrdinalIgnoreCase) || 
                     item.Id.Contains("failed", StringComparison.OrdinalIgnoreCase) || 
                     item.Id.Contains("limitation", StringComparison.OrdinalIgnoreCase));
-
-                // Cache Excel data for download
-                var downloadId = CacheExcelFile(excelBytes, downloadFileName);
 
                 return Ok(new
                 {
                     Success = true,
                     FileName = file.FileName,
-                    ItemCount = checklistItems.Count,
+                    ItemCount = formItems.Count,
                     SurveyJS = surveyJson,
-                    ExcelDownloadId = downloadId,
-                    ExcelFileName = downloadFileName,
                     Message = hasProcessingIssues 
-                        ? "Document processed with some limitations. See generated items for details."
-                        : "Successfully processed document using AI-powered conversion.",
-                    HasIssues = hasProcessingIssues
+                        ? "Document processed with some limitations. Please review the generated form carefully." 
+                        : "Document processed successfully and converted to form!",
+                    ProcessingIssues = hasProcessingIssues
                 });
             }
             catch (Exception ex)
@@ -113,24 +93,6 @@ namespace ChecklistGenerator.Controllers
                     Error = ex.Message
                 });
             }
-        }
-
-        private string CacheExcelFile(byte[] excelBytes, string fileName)
-        {
-            var downloadId = Guid.NewGuid().ToString();
-            _excelCache[downloadId] = (excelBytes, fileName);
-            
-            // Clean up old entries
-            if (_excelCache.Count > MaxCacheSize)
-            {
-                var oldestKeys = _excelCache.Keys.Take(_excelCache.Count - MaxCacheSize).ToList();
-                foreach (var key in oldestKeys)
-                {
-                    _excelCache.Remove(key);
-                }
-            }
-            
-            return downloadId;
         }
 
         [HttpGet("sample")]
@@ -260,31 +222,6 @@ namespace ChecklistGenerator.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error saving survey results");
-                return StatusCode(500, new
-                {
-                    Success = false,
-                    Error = ex.Message
-                });
-            }
-        }
-
-        [HttpGet("downloadExcel/{downloadId}")]
-        public IActionResult DownloadExcel(string downloadId)
-        {
-            try
-            {
-                if (!_excelCache.TryGetValue(downloadId, out var excelData))
-                {
-                    return NotFound("Excel file not found or has expired");
-                }
-
-                _logger.LogInformation($"Downloading Excel file: {excelData.FileName}");
-                
-                return File(excelData.Data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", excelData.FileName);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error downloading Excel file");
                 return StatusCode(500, new
                 {
                     Success = false,

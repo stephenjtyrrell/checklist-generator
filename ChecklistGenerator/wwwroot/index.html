@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Checklist Generator</title>
+    <title>AI Document to Form Converter</title>
     
     <!-- SurveyJS CSS -->
     <link href="https://unpkg.com/survey-jquery/defaultV2.min.css" type="text/css" rel="stylesheet">
@@ -48,6 +48,15 @@
             color: #333;
             text-align: center;
             margin-bottom: 30px;
+            font-size: 2.5rem;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 1.1rem;
+        }
         }
         
         .upload-section {
@@ -397,18 +406,19 @@
 </head>
 <body>
     <div class="container">
-        <h1>📋 Checklist to SurveyJS Converter</h1>
+        <h1>� AI Document to Form Converter</h1>
+        <div class="subtitle">Powered by Azure AI Document Intelligence</div>
         
         <div class="info-section">
             <h3>How it works:</h3>
             <ul>
-                <li>Upload a Word document (.docx) containing checklist items</li>
-                <li>✅ <strong>Full support for .docx files</strong> (modern Word format)</li>
-                <li>The application will analyze the document structure</li>
-                <li>Extract questions, checkboxes, and form elements</li>
-                <li>Convert them into SurveyJS JSON format</li>
-                <li>📝 <strong>Preview the interactive survey form</strong> with real SurveyJS rendering</li>
-                <li>💾 <strong>Test and export survey responses</strong> for analysis</li>
+                <li>Upload a PDF document with any structure</li>
+                <li>✅ <strong>Full support for PDF files</strong> with Azure AI Document Intelligence</li>
+                <li>The AI analyzes document content and structure intelligently</li>
+                <li>Automatically creates appropriate form fields: text inputs, dropdowns, checkboxes, and more</li>
+                <li>Generates interactive SurveyJS forms based on document content</li>
+                <li>📝 <strong>Preview the interactive form</strong> with real SurveyJS rendering</li>
+                <li>💾 <strong>Collect and export form responses</strong> for analysis</li>
                 <li>Download or copy the generated JSON for use in your surveys</li>
             </ul>
             <p><strong>New:</strong> Click "Preview Survey Form" to see how your generated survey will look and behave in a real SurveyJS application!</p>
@@ -416,7 +426,7 @@
         
         <div class="info-section">
             <h3>📄 Sample Documents</h3>
-            <p>Don't have a Word document ready? Download one of our sample documents to test the converter:</p>
+            <p>Don't have a PDF document ready? Download one of our sample documents to test the converter:</p>
             <div class="sample-downloads" id="sampleDownloads">
                 <div class="loading-samples" style="text-align: center; padding: 20px;">
                     <div class="spinner" style="width: 30px; height: 30px; margin: 0 auto 10px;"></div>
@@ -430,10 +440,10 @@
         
         <div class="upload-section">
             <h3>📁 Upload Word Document</h3>
-            <p>Select a .docx file containing your checklist</p>
+            <p>Select a PDF file to convert into an interactive form</p>
             
             <div class="file-input">
-                <input type="file" id="fileInput" accept=".docx" />
+                <input type="file" id="fileInput" accept=".pdf" />
             </div>
             
             <button onclick="uploadFile()" id="uploadBtn">
@@ -643,7 +653,7 @@
                     sampleDownloads.innerHTML = `
                         <div style="text-align: center; padding: 20px; color: #666;">
                             <p>📁 No sample documents found</p>
-                            <p style="font-size: 14px;">Add .docx files to the /samples folder to see them here.</p>
+                            <p style="font-size: 14px;">Add PDF files to the /samples folder to see them here.</p>
                         </div>
                     `;
                 }

@@ -4,12 +4,12 @@ namespace ChecklistGenerator.Services
 {
     public class SurveyJSConverter
     {
-        private readonly GeminiService _geminiService;
+        private readonly OpenRouterService _openRouterService;
         private readonly ILogger<SurveyJSConverter> _logger;
 
-        public SurveyJSConverter(GeminiService geminiService, ILogger<SurveyJSConverter> logger)
+        public SurveyJSConverter(OpenRouterService openRouterService, ILogger<SurveyJSConverter> logger)
         {
-            _geminiService = geminiService;
+            _openRouterService = openRouterService;
             _logger = logger;
         }
 
@@ -17,9 +17,9 @@ namespace ChecklistGenerator.Services
         {
             try
             {
-                _logger.LogInformation($"Converting {checklistItems.Count} checklist items to SurveyJS using Gemini AI");
+                _logger.LogInformation($"Converting {checklistItems.Count} checklist items to SurveyJS using OpenRouter AI");
                 
-                var surveyJson = await _geminiService.ConvertChecklistToSurveyJSAsync(checklistItems, title);
+                var surveyJson = await _openRouterService.ConvertChecklistToSurveyJSAsync(checklistItems, title);
                 
                 // If AI returns empty or null, use fallback
                 if (string.IsNullOrWhiteSpace(surveyJson))
@@ -33,7 +33,7 @@ namespace ChecklistGenerator.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error converting checklist to SurveyJS using Gemini AI, using fallback");
+                _logger.LogError(ex, "Error converting checklist to SurveyJS using OpenRouter AI, using fallback");
                 return CreateFallbackSurvey(checklistItems, title);
             }
         }

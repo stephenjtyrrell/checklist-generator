@@ -5,14 +5,14 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container
 builder.Services.AddControllers();
 
-// Configure HTTP client for Gemini service with timeout
-builder.Services.AddHttpClient<GeminiService>(client =>
+// Configure HTTP client for OpenRouter service with timeout
+builder.Services.AddHttpClient<OpenRouterService>(client =>
 {
     client.Timeout = TimeSpan.FromMinutes(5);
 });
 
 // Register application services
-builder.Services.AddScoped<GeminiService>();
+builder.Services.AddScoped<OpenRouterService>();
 builder.Services.AddScoped<DocxToExcelConverter>();
 builder.Services.AddScoped<ExcelProcessor>();
 builder.Services.AddScoped<SurveyJSConverter>();

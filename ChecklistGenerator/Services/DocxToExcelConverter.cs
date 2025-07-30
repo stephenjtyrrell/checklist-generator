@@ -8,12 +8,12 @@ namespace ChecklistGenerator.Services
     public class DocxToExcelConverter
     {
         private readonly ILogger<DocxToExcelConverter> _logger;
-        private readonly GeminiService _geminiService;
+        private readonly OpenRouterService _openRouterService;
 
-        public DocxToExcelConverter(ILogger<DocxToExcelConverter> logger, GeminiService geminiService)
+        public DocxToExcelConverter(ILogger<DocxToExcelConverter> logger, OpenRouterService openRouterService)
         {
             _logger = logger;
-            _geminiService = geminiService;
+            _openRouterService = openRouterService;
         }
 
         public async Task<(Stream ExcelStream, byte[] ExcelBytes, string FileName)> ConvertDocxToExcelAsync(Stream docxStream, string originalFileName)
@@ -80,7 +80,7 @@ namespace ChecklistGenerator.Services
                 _logger.LogInformation($"Extracted {documentContent.Length} characters from DOCX, processing with Gemini AI");
 
                 // Use Gemini AI to convert document to checklist items
-                var checklistItems = await _geminiService.ConvertDocumentToChecklistAsync(documentContent, originalFileName);
+                var checklistItems = await _openRouterService.ConvertDocumentToChecklistAsync(documentContent, originalFileName);
 
                 // Create Excel file from AI-generated checklist items
                 using (var wb = new XLWorkbook())

@@ -11,7 +11,7 @@ namespace ChecklistGenerator.Tests.Services
 {
     public class SurveyJSConverterTests
     {
-        private readonly Mock<GeminiService> _mockGeminiService;
+        private readonly Mock<OpenRouterService> _mockOpenRouterService;
         private readonly SurveyJSConverter _converter;
 
         public SurveyJSConverterTests()
@@ -20,14 +20,14 @@ namespace ChecklistGenerator.Tests.Services
             var mockConfiguration = new Mock<IConfiguration>();
             
             // Setup a valid API key for the mock configuration
-            mockConfiguration.Setup(x => x["GeminiApiKey"]).Returns("test-api-key");
+            mockConfiguration.Setup(x => x["OpenRouterApiKey"]).Returns("test-api-key");
             
-            _mockGeminiService = new Mock<GeminiService>(
+            _mockOpenRouterService = new Mock<OpenRouterService>(
                 mockHttpClient,
                 mockConfiguration.Object,
-                new NullLogger<GeminiService>());
+                new NullLogger<OpenRouterService>());
             
-            _converter = new SurveyJSConverter(_mockGeminiService.Object, new NullLogger<SurveyJSConverter>());
+            _converter = new SurveyJSConverter(_mockOpenRouterService.Object, new NullLogger<SurveyJSConverter>());
         }
 
         [Fact]
@@ -43,7 +43,7 @@ namespace ChecklistGenerator.Tests.Services
             }
             """;
 
-            _mockGeminiService
+            _mockOpenRouterService
                 .Setup(x => x.ConvertChecklistToSurveyJSAsync(checklistItems, "Test Survey"))
                 .ReturnsAsync(expectedSurveyJS);
 
@@ -59,7 +59,7 @@ namespace ChecklistGenerator.Tests.Services
         }
 
         [Fact]
-        public async Task ConvertToSurveyJSAsync_WithGeminiResponse_ShouldReturnAIGeneratedSurvey()
+        public async Task ConvertToSurveyJSAsync_WithOpenRouterResponse_ShouldReturnAIGeneratedSurvey()
         {
             // Arrange
             var checklistItems = new List<ChecklistItem>
@@ -92,7 +92,7 @@ namespace ChecklistGenerator.Tests.Services
             }
             """;
 
-            _mockGeminiService
+            _mockOpenRouterService
                 .Setup(x => x.ConvertChecklistToSurveyJSAsync(checklistItems, "Test Survey"))
                 .ReturnsAsync(expectedSurveyJS);
 
@@ -108,7 +108,7 @@ namespace ChecklistGenerator.Tests.Services
         }
 
         [Fact]
-        public async Task ConvertToSurveyJSAsync_GeminiServiceFails_ShouldReturnFallbackSurvey()
+        public async Task ConvertToSurveyJSAsync_OpenRouterServiceFails_ShouldReturnFallbackSurvey()
         {
             // Arrange
             var checklistItems = new List<ChecklistItem>
@@ -121,7 +121,7 @@ namespace ChecklistGenerator.Tests.Services
                 }
             };
 
-            _mockGeminiService
+            _mockOpenRouterService
                 .Setup(x => x.ConvertChecklistToSurveyJSAsync(It.IsAny<List<ChecklistItem>>(), It.IsAny<string>()))
                 .ReturnsAsync(string.Empty); // Simulate failure
 

@@ -8,12 +8,12 @@ namespace ChecklistGenerator.Services
     public class ExcelProcessor
     {
         private readonly ILogger<ExcelProcessor> _logger;
-        private readonly GeminiService _geminiService;
+        private readonly OpenRouterService _openRouterService;
 
-        public ExcelProcessor(ILogger<ExcelProcessor> logger, GeminiService geminiService)
+        public ExcelProcessor(ILogger<ExcelProcessor> logger, OpenRouterService openRouterService)
         {
             _logger = logger;
-            _geminiService = geminiService;
+            _openRouterService = openRouterService;
         }
 
         public async Task<List<ChecklistItem>> ProcessExcelAsync(Stream excelStream, string fileName = "")
@@ -38,10 +38,10 @@ namespace ChecklistGenerator.Services
                     throw new InvalidOperationException("No readable content found in Excel file");
                 }
 
-                _logger.LogInformation($"Extracted {documentContent.Length} characters from Excel file, processing with Gemini AI");
+                _logger.LogInformation($"Extracted {documentContent.Length} characters from Excel file, processing with OpenRouter AI");
 
-                // Use Gemini AI to convert the Excel content to checklist items
-                var checklistItems = await _geminiService.ConvertDocumentToChecklistAsync(documentContent, fileName);
+                // Use OpenRouter AI to convert the Excel content to checklist items
+                var checklistItems = await _openRouterService.ConvertDocumentToChecklistAsync(documentContent, fileName);
                 
                 // Fallback if no items generated
                 if (checklistItems.Count == 0)

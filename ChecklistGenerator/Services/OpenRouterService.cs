@@ -4,32 +4,43 @@ using System.Text;
 
 namespace ChecklistGenerator.Services
 {
-    public class GeminiService
+    public class OpenRouterService
     {
         private readonly HttpClient _httpClient;
-        private readonly ILogger<GeminiService> _logger;
+        private readonly ILogger<OpenRouterService> _logger;
         private readonly string _apiKey;
-        private readonly string _baseUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent";
+        private readonly string _baseUrl = "https://openrouter.ai/api/v1/chat/completions";
+        private readonly string _defaultModel;
+        
+        // Fallback models in order of preference (verified free models on OpenRouter)
+        private readonly string[] _fallbackModels = new[]
+        {
+            "mistralai/mistral-7b-instruct:free",
+            "openchat/openchat-7b:free",
+            "huggingfaceh4/zephyr-7b-beta:free",
+            "google/gemma-7b-it:free",
+            "meta-llama/llama-3.2-1b-instruct:free"
+        };
 
-        public GeminiService(HttpClient httpClient, IConfiguration configuration, ILogger<GeminiService> logger)
+        public OpenRouterService(HttpClient httpClient, IConfiguration configuration, ILogger<OpenRouterService> logger)
         {
             _httpClient = httpClient;
             _logger = logger;
-            _apiKey = configuration["GeminiApiKey"] ?? throw new ArgumentException("GeminiApiKey not configured");
+            _apiKey = configuration["OpenRouterApiKey"] ?? throw new ArgumentException("OpenRouterApiKey not configured");
+            
+            // Allow configuration of the default model, fallback to free Llama model
+            _defaultModel = configuration["OpenRouterModel"] ?? "meta-llama/llama-3.2-3b-instruct:free";
+            
+            // Set the required headers for OpenRouter
+            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
+            _httpClient.DefaultRequestHeaders.Add("HTTP-Referer", "https://checklist.stephentyrrell.ie");
+            _httpClient.DefaultRequestHeaders.Add("X-Title", "Checklist Generator");
         }
 
         public virtual async Task<List<ChecklistItem>> ConvertDocumentToChecklistAsync(string documentContent, string fileName = "")
         {
             try
             {
-                // Check document size and potentially chunk if too large
-                if (documentContent.Length > 50000) // Approximately 12,500 tokens
-                {
-                    _logger.LogWarning($"Document is large ({documentContent.Length} characters), chunking may be needed for optimal results");
-                    // For now, truncate to stay within limits - we can implement proper chunking later
-                    documentContent = documentContent.Substring(0, 50000) + "\n\n[Content truncated for processing]";
-                }
-
                 var prompt = $@"
 Analyze this document content and convert it into a structured checklist. Extract the MOST IMPORTANT actionable items, requirements, and compliance points. Focus on quality over quantity.
 
@@ -64,10 +75,10 @@ Guidelines:
 
 Return only the JSON array, no additional text or formatting.";
 
-                var response = await CallGeminiApiAsync(prompt);
+                var response = await CallOpenRouterApiAsync(prompt);
                 var jsonContent = ExtractJsonFromResponse(response);
                 
-                _logger.LogInformation("Raw JSON from Gemini: {JsonContent}", jsonContent.Length > 1000 ? jsonContent.Substring(0, 1000) + "..." : jsonContent);
+                _logger.LogInformation("Raw JSON from OpenRouter: {JsonContent}", jsonContent.Length > 1000 ? jsonContent.Substring(0, 1000) + "..." : jsonContent);
                 
                 // Validate JSON completeness before parsing
                 if (!IsValidCompleteJson(jsonContent))
@@ -84,19 +95,43 @@ Return only the JSON array, no additional text or formatting.";
                 
                 var checklistItems = ConvertDynamicToChecklistItems(dynamicItems ?? new List<dynamic>());
 
-                _logger.LogInformation($"Generated {checklistItems?.Count ?? 0} checklist items using Gemini AI");
+                _logger.LogInformation($"Generated {checklistItems?.Count ?? 0} checklist items using OpenRouter AI");
                 return checklistItems ?? new List<ChecklistItem>();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error converting document to checklist using Gemini AI. Exception type: {ExceptionType}, Message: {Message}", ex.GetType().Name, ex.Message);
+                _logger.LogError(ex, "Error converting document to checklist using OpenRouter AI. Exception type: {ExceptionType}, Message: {Message}", ex.GetType().Name, ex.Message);
+                
+                // Check if this is a rate limiting issue
+                if (ex.Message.Contains("rate limit") || ex.Message.Contains("limit_rpm"))
+                {
+                    _logger.LogWarning("Rate limiting detected, returning rate limit specific error message");
+                    return new List<ChecklistItem>
+                    {
+                        new ChecklistItem
+                        {
+                            Id = "rate_limit_error",
+                            Text = "AI service temporarily unavailable due to high demand",
+                            Type = ChecklistItemType.Comment,
+                            IsRequired = false,
+                            Description = "The free AI models are experiencing high demand. Please try again in a few minutes, or consider upgrading to a paid OpenRouter plan for higher rate limits."
+                        }
+                    };
+                }
+                
+                // Check if all models failed - use basic fallback
+                if (ex.Message.Contains("All models failed"))
+                {
+                    _logger.LogWarning("All AI models failed, using basic fallback processing");
+                    return CreateBasicFallbackChecklist(documentContent, fileName);
+                }
                 
                 // Return a fallback item indicating the error
                 return new List<ChecklistItem>
                 {
                     new ChecklistItem
                     {
-                        Id = "gemini_conversion_error",
+                        Id = "openrouter_conversion_error",
                         Text = $"Failed to process document with AI: {ex.Message}",
                         Type = ChecklistItemType.Comment,
                         IsRequired = false,
@@ -145,18 +180,18 @@ Include these properties:
 
 Return only the JSON configuration, no additional text or formatting.";
 
-                var response = await CallGeminiApiAsync(prompt);
+                var response = await CallOpenRouterApiAsync(prompt);
                 var jsonContent = ExtractJsonFromResponse(response);
                 
                 // Validate that it's valid JSON
                 var testParse = JsonDocument.Parse(jsonContent);
                 
-                _logger.LogInformation("Successfully generated SurveyJS configuration using Gemini AI");
+                _logger.LogInformation("Successfully generated SurveyJS configuration using OpenRouter AI");
                 return jsonContent;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error converting checklist to SurveyJS using Gemini AI. Exception type: {ExceptionType}, Message: {Message}", ex.GetType().Name, ex.Message);
+                _logger.LogError(ex, "Error converting checklist to SurveyJS using OpenRouter AI. Exception type: {ExceptionType}, Message: {Message}", ex.GetType().Name, ex.Message);
                 
                 // Return a basic fallback survey
                 var fallbackSurvey = new
@@ -224,80 +259,173 @@ Please:
 Return the enhanced checklist as a JSON array with the same structure as the input.
 Return only the JSON array, no additional text or formatting.";
 
-                var response = await CallGeminiApiAsync(prompt);
+                var response = await CallOpenRouterApiAsync(prompt);
                 var jsonContent = ExtractJsonFromResponse(response);
                 
-                var enhancedItems = JsonSerializer.Deserialize<List<ChecklistItem>>(jsonContent, new JsonSerializerOptions
+                // Parse as dynamic first to handle enum conversion manually
+                var dynamicItems = JsonSerializer.Deserialize<List<dynamic>>(jsonContent, new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true
                 });
+                
+                var enhancedItems = ConvertDynamicToChecklistItems(dynamicItems ?? new List<dynamic>());
 
-                _logger.LogInformation($"Enhanced checklist from {existingItems.Count} to {enhancedItems?.Count ?? 0} items using Gemini AI");
+                _logger.LogInformation($"Enhanced checklist from {existingItems.Count} to {enhancedItems?.Count ?? 0} items using OpenRouter AI");
                 return enhancedItems ?? existingItems;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error enhancing checklist using Gemini AI. Exception type: {ExceptionType}, Message: {Message}", ex.GetType().Name, ex.Message);
+                _logger.LogError(ex, "Error enhancing checklist using OpenRouter AI. Exception type: {ExceptionType}, Message: {Message}", ex.GetType().Name, ex.Message);
                 return existingItems; // Return original items if enhancement fails
             }
         }
 
-        private async Task<string> CallGeminiApiAsync(string prompt)
+        private async Task<string> CallOpenRouterApiAsync(string prompt)
         {
-            var requestBody = new
+            var models = new[] { _defaultModel }.Concat(_fallbackModels).ToArray();
+            
+            foreach (var model in models)
             {
-                contents = new[]
+                try
                 {
-                    new
+                    _logger.LogInformation("Attempting API call with model: {Model}", model);
+                    
+                    var requestBody = new
                     {
-                        parts = new[]
+                        model = model,
+                        messages = new[]
                         {
-                            new { text = prompt }
-                        }
+                            new
+                            {
+                                role = "user",
+                                content = prompt
+                            }
+                        },
+                        max_tokens = 4096,
+                        temperature = 0.1,
+                        top_p = 0.95,
+                        frequency_penalty = 0,
+                        presence_penalty = 0
+                    };
+
+                    var json = JsonSerializer.Serialize(requestBody, new JsonSerializerOptions
+                    {
+                        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+                    });
+
+                    var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                    _logger.LogInformation("Sending request to OpenRouter API with {ContentLength} characters using model {Model}. Request URL: {Url}", json.Length, model, _baseUrl);
+                    
+                    var response = await _httpClient.PostAsync(_baseUrl, content);
+                    
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var responseContent = await response.Content.ReadAsStringAsync();
+                        _logger.LogInformation("Received successful response from OpenRouter API using model {Model}: {ResponseLength} characters", model, responseContent.Length);
+                        
+                        var responseData = JsonSerializer.Deserialize<JsonElement>(responseContent);
+
+                        // Extract the generated text from the OpenRouter response
+                        var choices = responseData.GetProperty("choices");
+                        var firstChoice = choices[0];
+                        var message = firstChoice.GetProperty("message");
+                        var content_text = message.GetProperty("content").GetString();
+
+                        return content_text ?? string.Empty;
                     }
-                },
-                generationConfig = new
+                    else
+                    {
+                        var errorContent = await response.Content.ReadAsStringAsync();
+                        _logger.LogWarning("Model {Model} failed with status {StatusCode}: {Error}", model, response.StatusCode, errorContent);
+                        
+                        // Check if this is a rate limit error and we should try the next model
+                        if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests || 
+                            errorContent.Contains("rate limit") || 
+                            errorContent.Contains("limit_rpm"))
+                        {
+                            _logger.LogInformation("Rate limit encountered with {Model}, waiting 2 seconds before trying next fallback model", model);
+                            await Task.Delay(2000); // Reduced delay to 2 seconds
+                            continue;
+                        }
+                        
+                        // Check for specific model availability errors
+                        if (errorContent.Contains("not found") || 
+                            errorContent.Contains("unavailable") || 
+                            response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                        {
+                            _logger.LogWarning("Model {Model} not available, trying next fallback immediately", model);
+                            continue;
+                        }
+                        
+                        // For other errors, still try fallback models
+                        _logger.LogWarning("API error with {Model}, trying next fallback model", model);
+                        continue;
+                    }
+                }
+                catch (HttpRequestException ex)
                 {
-                    temperature = 0.1,
-                    topK = 40,
-                    topP = 0.95,
-                    maxOutputTokens = 4096, // Reduced from 8192 to prevent truncation
+                    _logger.LogWarning(ex, "HTTP request failed for model {Model}, trying next fallback", model);
+                    continue;
+                }
+                catch (TaskCanceledException ex)
+                {
+                    _logger.LogWarning(ex, "Request timeout for model {Model}, trying next fallback", model);
+                    continue;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Unexpected error with model {Model}, trying next fallback", model);
+                    continue;
+                }
+            }
+            
+            // If all models fail, throw an exception
+            var errorMessage = $"All models failed. Tried: {string.Join(", ", models)}";
+            _logger.LogError(errorMessage);
+            throw new HttpRequestException($"OpenRouter API error: {errorMessage}");
+        }
+
+        private List<ChecklistItem> CreateBasicFallbackChecklist(string documentContent, string fileName)
+        {
+            _logger.LogWarning("Creating basic fallback checklist without AI processing");
+            
+            // Simple rule-based extraction as ultimate fallback
+            var lines = documentContent.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Where(line => !string.IsNullOrWhiteSpace(line.Trim()))
+                .Take(20) // Limit to first 20 meaningful lines
+                .ToList();
+            
+            var checklistItems = new List<ChecklistItem>
+            {
+                new ChecklistItem
+                {
+                    Id = "fallback_note",
+                    Text = "AI processing unavailable - manual review required",
+                    Type = ChecklistItemType.Comment,
+                    IsRequired = false,
+                    Description = "All AI models are currently unavailable. Please review the document manually and create checklist items as needed."
                 }
             };
-
-            var json = JsonSerializer.Serialize(requestBody, new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            });
-
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-            var url = $"{_baseUrl}?key={_apiKey}";
-
-            _logger.LogInformation("Sending request to Gemini API with {ContentLength} characters", json.Length);
             
-            var response = await _httpClient.PostAsync(url, content);
-            
-            if (!response.IsSuccessStatusCode)
+            // Add first few lines as basic checklist items
+            for (int i = 0; i < Math.Min(lines.Count, 10); i++)
             {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("Gemini API returned error: {StatusCode} - {Content}", response.StatusCode, errorContent);
-                throw new HttpRequestException($"Gemini API error: {response.StatusCode} - {errorContent}");
+                var line = lines[i].Trim();
+                if (line.Length > 10) // Only include meaningful lines
+                {
+                    checklistItems.Add(new ChecklistItem
+                    {
+                        Id = $"basic_item_{i + 1}",
+                        Text = line.Length > 100 ? line.Substring(0, 97) + "..." : line,
+                        Type = ChecklistItemType.Checkbox,
+                        IsRequired = false,
+                        Description = "Auto-extracted from document - please review and modify as needed"
+                    });
+                }
             }
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            _logger.LogInformation("Received response from Gemini API: {ResponseLength} characters", responseContent.Length);
             
-            var responseData = JsonSerializer.Deserialize<JsonElement>(responseContent);
-
-            // Extract the generated text from the Gemini response
-            var candidates = responseData.GetProperty("candidates");
-            var firstCandidate = candidates[0];
-            var contentProp = firstCandidate.GetProperty("content");
-            var parts = contentProp.GetProperty("parts");
-            var firstPart = parts[0];
-            var text = firstPart.GetProperty("text").GetString();
-
-            return text ?? string.Empty;
+            return checklistItems;
         }
 
         private List<ChecklistItem> ConvertDynamicToChecklistItems(List<dynamic> dynamicItems)

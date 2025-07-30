@@ -1,6 +1,6 @@
 # 📋 AI-Powered Checklist Generator
 
-A .NET 9 web application that converts DOCX documents to interactive SurveyJS forms using Google Gemini AI for intelligent document analysis and checklist generation.
+A .NET 9 web application that converts DOCX documents to interactive SurveyJS forms using OpenRouter.ai free models for intelligent document analysis and checklist generation.
 
 ![Build Status](https://github.com/stephenjtyrrell/checklist-generator/workflows/Build%20and%20Deploy%20Checklist%20Generator/badge.svg)
 ![Azure Deploy](https://github.com/stephenjtyrrell/checklist-generator/workflows/Codespace%20Auto-Deploy/badge.svg)
@@ -14,23 +14,23 @@ A .NET 9 web application that converts DOCX documents to interactive SurveyJS fo
 
 *Upload your DOCX files and convert them to interactive SurveyJS forms instantly using AI-powered analysis!*
 
-> **🤖 AI-Enhanced**: This application now uses Google Gemini AI to intelligently analyze document content, extract actionable items, and generate comprehensive checklists. No more regex patterns or static parsing - the AI understands context and creates meaningful, structured forms from any document type.
+> **🤖 AI-Enhanced**: This application now uses OpenRouter.ai free models to intelligently analyze document content, extract actionable items, and generate comprehensive checklists. No more regex patterns or static parsing - the AI understands context and creates meaningful, structured forms from any document type.
 
 ---
 
 ## ✨ AI-Powered Features
 
 ### 🎯 Complete AI Integration (Recently Updated)
-All document processing has been migrated from static regex patterns to **Google Gemini AI** for intelligent analysis:
+All document processing has been migrated from static regex patterns to **OpenRouter.ai free models** for intelligent analysis:
 
-- **🧠 Intelligent Document Analysis**: Gemini AI understands document structure and content context
+- **🧠 Intelligent Document Analysis**: OpenRouter AI understands document structure and content context
 - **📝 Smart Checklist Generation**: Automatically identifies actionable items, requirements, and compliance points
 - **🎯 Context-Aware Processing**: AI preserves important regulatory and procedural information
 - **🔄 Enhanced SurveyJS Conversion**: Better form generation with appropriate question types
 - **📊 Structured Excel Output**: AI-generated Excel files with proper categorization and formatting
 
 ### 🔧 Technical AI Implementation
-- **GeminiService**: Centralized AI service using HTTP REST API integration
+- **OpenRouterService**: Centralized AI service using OpenRouter.ai API with free model access
 - **ExcelProcessor**: AI-powered Excel content analysis and checklist extraction
 - **SurveyJSConverter**: Intelligent form generation with question type detection
 - **DocxToExcelConverter**: Enhanced document processing with AI-driven content understanding
@@ -42,6 +42,7 @@ All document processing has been migrated from static regex patterns to **Google
 - **Better Accuracy**: AI understands context, relationships, and document intent
 - **Improved Output**: More relevant and actionable checklist items
 - **Future-Proof**: Easy to enhance and adapt AI prompts for specific use cases
+- **Cost-Effective**: Uses OpenRouter.ai free models instead of paid services
 
 ---
 
@@ -197,11 +198,12 @@ healthy
 
 ## 🤖 AI Configuration
 
-### Getting Started with Gemini AI
+### Getting Started with OpenRouter.ai
 
-1. **Get a Gemini API Key**:
-   - Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
-   - Create a new API key
+1. **Get an OpenRouter API Key**:
+   - Visit [OpenRouter.ai](https://openrouter.ai/keys)
+   - Create a free account
+   - Generate a new API key
    - Copy the key
 
 2. **Configure the Application**:
@@ -210,7 +212,7 @@ healthy
    ```bash
    # Use .NET User Secrets (keeps API key out of source control)
    dotnet user-secrets init
-   dotnet user-secrets set "GeminiApiKey" "your_actual_api_key_here"
+   dotnet user-secrets set "OpenRouterApiKey" "your_actual_api_key_here"
    ```
    
    **Alternative for Local Development:**
@@ -224,24 +226,50 @@ healthy
    **For Production/Azure:**
    ```bash
    # Set environment variable
-   export GeminiApiKey="your_actual_api_key_here"
+   export OpenRouterApiKey="your_actual_api_key_here"
    
    # Or in Azure Container Instances
    az container create \
-     --environment-variables GeminiApiKey="your_actual_api_key_here"
+     --environment-variables OpenRouterApiKey="your_actual_api_key_here"
    ```
 
    **⚠️ Security Note**: Never commit API keys to source control. The main `appsettings.json` should not contain sensitive values.
 
 3. **Verify Configuration**:
    - Upload a test DOCX file
-   - Check logs for "processing with Gemini AI" messages
+   - Check logs for "processing with OpenRouter AI" messages
    - Confirm AI-generated checklist items in response
+
+### Rate Limiting & Free Tier Considerations
+
+**Free Model Limitations:**
+- Free models have rate limits (typically 1-10 requests per minute)
+- High demand periods may cause temporary delays
+- The application automatically handles rate limits with:
+  - **Fallback Models**: Tries multiple free models when one is rate limited
+  - **Graceful Degradation**: Shows helpful error messages during high demand
+  - **Automatic Retry**: Built-in delays and retry logic
+
+**Handling Rate Limits:**
+```
+Rate limit exceeded: limit_rpm/meta-llama/llama-3.2-3b-instruct/...
+```
+
+When you see this error:
+1. **Wait 1-2 minutes** and try again
+2. **Application will automatically try fallback models**
+3. **Consider upgrading** to OpenRouter paid tier for higher limits
+4. **Use during off-peak hours** for better availability
+
+**Improving Reliability:**
+- **Paid Plans**: OpenRouter offers paid plans with higher rate limits
+- **Model Selection**: Configure different models in settings
+- **Batch Processing**: Process multiple documents during off-peak hours
 
 ### AI Processing Features
 
 **Core Services Enhanced with AI:**
-- **GeminiService.cs**: New centralized AI service handling all Gemini API interactions
+- **OpenRouterService.cs**: New centralized AI service handling all OpenRouter.ai API interactions using free models
 - **ExcelProcessor.cs**: Completely rewritten to use AI for content extraction and analysis
 - **SurveyJSConverter.cs**: Enhanced with AI-powered form generation and question type detection
 - **DocxToExcelConverter.cs**: Upgraded with AI-driven document understanding and structuring
@@ -255,9 +283,12 @@ healthy
 
 **Performance & Reliability:**
 - **Async Processing**: Non-blocking AI calls for better application responsiveness
-- **HTTP Client Pool**: Efficient connection management for Gemini API requests
+- **HTTP Client Pool**: Efficient connection management for OpenRouter API requests
 - **Retry Logic**: Built-in error handling and retry mechanisms
 - **Fallback Systems**: Graceful degradation when AI services are unavailable
+- **Free Models**: Cost-effective solution using OpenRouter.ai's free tier models
+- **Rate Limit Handling**: Automatic fallback to alternative models when rate limits are hit
+- **Model Redundancy**: Multiple free models available as fallbacks for high availability
 
 ---
 
@@ -501,8 +532,8 @@ For automated Azure deployment, configure these secrets in GitHub repository set
 #### 2. `AZURE_CONTAINER_REGISTRY_NAME`
 Your Azure Container Registry name (e.g., "checklistgen")
 
-#### 3. `GEMINI_API_KEY`
-Your Google Gemini API key for AI-powered document processing
+#### 3. `OPENROUTER_API_KEY`
+Your OpenRouter.ai API key for AI-powered document processing (free models available)
 
 ### Create Azure Resources
 
@@ -534,7 +565,7 @@ az container create \
   --name checklist-generator \
   --image YOUR_REGISTRY.azurecr.io/checklist-generator:latest \
   --ports 80 443 \
-  --environment-variables GeminiApiKey="YOUR_GEMINI_API_KEY" \
+  --environment-variables OpenRouterApiKey="YOUR_OPENROUTER_API_KEY" \
   --dns-name-label checklist-generator-stable
 ```
 

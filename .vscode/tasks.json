@@ -13,6 +13,44 @@
 			"problemMatcher": [
 				"$msCompile"
 			]
+		},
+		{
+			"label": "run",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"run",
+				"--project",
+				"ChecklistGenerator/ChecklistGenerator.csproj"
+			],
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"dependsOn": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "watch",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"watch",
+				"run",
+				"--project",
+				"ChecklistGenerator/ChecklistGenerator.csproj"
+			],
+			"group": "build",
+			"isBackground": true,
+			"problemMatcher": [
+				"$msCompile"
+			]
 		}
 	]
 }

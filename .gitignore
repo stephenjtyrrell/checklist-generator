@@ -501,6 +501,19 @@ jspm_packages/
 appsettings.local.json
 appsettings.*.local.json
 secrets.json
+*.key
+*.pem
+*.pfx
+
+# Test files
+test_*.py
+test_*.pdf
+simple_test.*
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
 
 # OS generated files
 Thumbs.db

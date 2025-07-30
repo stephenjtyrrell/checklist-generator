@@ -5,16 +5,14 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container
 builder.Services.AddControllers();
 
-// Configure HTTP client for Gemini service with timeout
-builder.Services.AddHttpClient<GeminiService>(client =>
+// Configure HTTP client for Azure AI Foundry service with timeout
+builder.Services.AddHttpClient<AzureAIFoundryService>(client =>
 {
     client.Timeout = TimeSpan.FromMinutes(5);
 });
 
 // Register application services
-builder.Services.AddScoped<GeminiService>();
-builder.Services.AddScoped<DocxToExcelConverter>();
-builder.Services.AddScoped<ExcelProcessor>();
+builder.Services.AddScoped<IAzureAIFoundryService, AzureAIFoundryService>();
 builder.Services.AddScoped<SurveyJSConverter>();
 
 // Configure CORS for cross-origin requests

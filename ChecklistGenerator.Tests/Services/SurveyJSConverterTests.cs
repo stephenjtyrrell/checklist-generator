@@ -11,23 +11,14 @@ namespace ChecklistGenerator.Tests.Services
 {
     public class SurveyJSConverterTests
     {
-        private readonly Mock<GeminiService> _mockGeminiService;
+        private readonly Mock<IAzureAIFoundryService> _mockAzureAIFoundryService;
         private readonly SurveyJSConverter _converter;
 
         public SurveyJSConverterTests()
         {
-            var mockHttpClient = Mock.Of<HttpClient>();
-            var mockConfiguration = new Mock<IConfiguration>();
+            _mockAzureAIFoundryService = new Mock<IAzureAIFoundryService>();
             
-            // Setup a valid API key for the mock configuration
-            mockConfiguration.Setup(x => x["GeminiApiKey"]).Returns("test-api-key");
-            
-            _mockGeminiService = new Mock<GeminiService>(
-                mockHttpClient,
-                mockConfiguration.Object,
-                new NullLogger<GeminiService>());
-            
-            _converter = new SurveyJSConverter(_mockGeminiService.Object, new NullLogger<SurveyJSConverter>());
+            _converter = new SurveyJSConverter(_mockAzureAIFoundryService.Object, new NullLogger<SurveyJSConverter>());
         }
 
         [Fact]
@@ -43,7 +34,7 @@ namespace ChecklistGenerator.Tests.Services
             }
             """;
 
-            _mockGeminiService
+            _mockAzureAIFoundryService
                 .Setup(x => x.ConvertChecklistToSurveyJSAsync(checklistItems, "Test Survey"))
                 .ReturnsAsync(expectedSurveyJS);
 
@@ -59,7 +50,7 @@ namespace ChecklistGenerator.Tests.Services
         }
 
         [Fact]
-        public async Task ConvertToSurveyJSAsync_WithGeminiResponse_ShouldReturnAIGeneratedSurvey()
+        public async Task ConvertToSurveyJSAsync_WithAzureAIResponse_ShouldReturnAIGeneratedSurvey()
         {
             // Arrange
             var checklistItems = new List<ChecklistItem>
@@ -92,7 +83,7 @@ namespace ChecklistGenerator.Tests.Services
             }
             """;
 
-            _mockGeminiService
+            _mockAzureAIFoundryService
                 .Setup(x => x.ConvertChecklistToSurveyJSAsync(checklistItems, "Test Survey"))
                 .ReturnsAsync(expectedSurveyJS);
 
@@ -108,7 +99,7 @@ namespace ChecklistGenerator.Tests.Services
         }
 
         [Fact]
-        public async Task ConvertToSurveyJSAsync_GeminiServiceFails_ShouldReturnFallbackSurvey()
+        public async Task ConvertToSurveyJSAsync_AzureAIServiceFails_ShouldThrowException()
         {
             // Arrange
             var checklistItems = new List<ChecklistItem>
@@ -121,20 +112,41 @@ namespace ChecklistGenerator.Tests.Services
                 }
             };
 
-            _mockGeminiService
+            _mockAzureAIFoundryService
                 .Setup(x => x.ConvertChecklistToSurveyJSAsync(It.IsAny<List<ChecklistItem>>(), It.IsAny<string>()))
                 .ReturnsAsync(string.Empty); // Simulate failure
 
-            // Act
-            var result = await _converter.ConvertToSurveyJSAsync(checklistItems, "Fallback Survey");
-
-            // Assert
-            result.Should().NotBeNullOrEmpty();
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+                () => _converter.ConvertToSurveyJSAsync(checklistItems, "Test Survey"));
             
-            var jsonDocument = JsonDocument.Parse(result);
-            jsonDocument.RootElement.GetProperty("title").GetString().Should().Be("Fallback Survey");
-            // Should contain fallback message in description
-            jsonDocument.RootElement.GetProperty("description").GetString().Should().Contain("AI service unavailable");
+            exception.Message.Should().Contain("Azure AI Foundry service returned empty or null response");
+        }
+
+        [Fact]
+        public async Task ConvertToSurveyJSAsync_AzureAIServiceThrowsException_ShouldPropagateException()
+        {
+            // Arrange
+            var checklistItems = new List<ChecklistItem>
+            {
+                new ChecklistItem
+                {
+                    Id = "item1",
+                    Text = "Test question",
+                    Type = ChecklistItemType.Boolean
+                }
+            };
+
+            var expectedExceptionMessage = "AI service connection failed";
+            _mockAzureAIFoundryService
+                .Setup(x => x.ConvertChecklistToSurveyJSAsync(It.IsAny<List<ChecklistItem>>(), It.IsAny<string>()))
+                .ThrowsAsync(new HttpRequestException(expectedExceptionMessage));
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<HttpRequestException>(
+                () => _converter.ConvertToSurveyJSAsync(checklistItems, "Test Survey"));
+            
+            exception.Message.Should().Contain(expectedExceptionMessage);
         }
     }
 }

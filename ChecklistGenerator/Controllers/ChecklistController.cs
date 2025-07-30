@@ -8,26 +8,19 @@ namespace ChecklistGenerator.Controllers
     [Route("api/[controller]")]
     public class ChecklistController : ControllerBase
     {
-        private readonly DocxToExcelConverter _docxToExcelConverter;
-        private readonly ExcelProcessor _excelProcessor;
         private readonly SurveyJSConverter _surveyConverter;
+        private readonly IAzureAIFoundryService _azureAIFoundryService;
         private readonly ILogger<ChecklistController> _logger;
         private readonly IWebHostEnvironment _webHostEnvironment;
-        
-        // In-memory cache for Excel files (for production, consider Redis)
-        private static readonly Dictionary<string, (byte[] Data, string FileName)> _excelCache = new();
-        private const int MaxCacheSize = 10;
 
         public ChecklistController(
-            DocxToExcelConverter docxToExcelConverter,
-            ExcelProcessor excelProcessor,
             SurveyJSConverter surveyConverter,
+            IAzureAIFoundryService azureAIFoundryService,
             ILogger<ChecklistController> logger,
             IWebHostEnvironment webHostEnvironment)
         {
-            _docxToExcelConverter = docxToExcelConverter;
-            _excelProcessor = excelProcessor;
             _surveyConverter = surveyConverter;
+            _azureAIFoundryService = azureAIFoundryService;
             _logger = logger;
             _webHostEnvironment = webHostEnvironment;
         }
@@ -43,27 +36,29 @@ namespace ChecklistGenerator.Controllers
                 }
 
                 var fileName = file.FileName;
-                if (string.IsNullOrEmpty(fileName) || !fileName.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))
+                if (string.IsNullOrEmpty(fileName))
                 {
-                    return BadRequest(new { Success = false, Message = "Only .docx files are supported" });
+                    return BadRequest(new { Success = false, Message = "Invalid file name" });
                 }
 
-                _logger.LogInformation("Processing file: {FileName}", file.FileName);
+                // Check for supported file types
+                var isDocx = fileName.EndsWith(".docx", StringComparison.OrdinalIgnoreCase);
+                var isPdf = fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
+                
+                if (!isDocx && !isPdf)
+                {
+                    return BadRequest(new { Success = false, Message = "Only .docx and .pdf files are supported" });
+                }
+
+                var fileType = isPdf ? "PDF" : "Word document";
+                _logger.LogInformation("Processing {FileType}: {FileName}", fileType, file.FileName);
 
                 List<ChecklistItem> checklistItems;
-                byte[] excelBytes;
-                string downloadFileName;
                 
                 using var stream = file.OpenReadStream();
                 
-                // Convert DOCX to Excel
-                var conversionResult = await _docxToExcelConverter.ConvertDocxToExcelAsync(stream, file.FileName ?? "unknown.docx");
-                using var excelStream = conversionResult.ExcelStream;
-                excelBytes = conversionResult.ExcelBytes;
-                downloadFileName = conversionResult.FileName;
-                
-                // Process Excel to extract checklist items
-                checklistItems = await _excelProcessor.ProcessExcelAsync(excelStream, file.FileName ?? "unknown.docx");
+                // Process document with Azure AI Foundry (handles both PDF and DOCX)
+                checklistItems = await _azureAIFoundryService.ProcessDocumentAsync(stream, file.FileName ?? "unknown");
                 
                 if (checklistItems.Count == 0)
                 {
@@ -84,28 +79,33 @@ namespace ChecklistGenerator.Controllers
                 var hasProcessingIssues = checklistItems.Any(item => 
                     item.Id.Contains("error", StringComparison.OrdinalIgnoreCase) || 
                     item.Id.Contains("failed", StringComparison.OrdinalIgnoreCase) || 
-                    item.Id.Contains("limitation", StringComparison.OrdinalIgnoreCase));
+                    item.Id.Contains("limitation", StringComparison.OrdinalIgnoreCase) ||
+                    item.Id.Contains("processing", StringComparison.OrdinalIgnoreCase));
 
-                // Cache Excel data for download
-                var downloadId = CacheExcelFile(excelBytes, downloadFileName);
+                // Determine processing method based on file type
+                var processingMethod = isPdf 
+                    ? "Azure AI Foundry with DeepSeek R1 (PDF)" 
+                    : "Azure AI Foundry with DeepSeek R1 (DOCX)";
+
+                var message = hasProcessingIssues 
+                    ? "Document processed successfully but some items may need manual review due to processing limitations."
+                    : $"Document processed successfully using {processingMethod}.";
 
                 return Ok(new
                 {
                     Success = true,
                     FileName = file.FileName,
                     ItemCount = checklistItems.Count,
+                    Items = checklistItems, // Include items for debugging/transparency
                     SurveyJS = surveyJson,
-                    ExcelDownloadId = downloadId,
-                    ExcelFileName = downloadFileName,
-                    Message = hasProcessingIssues 
-                        ? "Document processed with some limitations. See generated items for details."
-                        : "Successfully processed document using AI-powered conversion.",
+                    Message = message,
+                    ProcessingMethod = processingMethod,
                     HasIssues = hasProcessingIssues
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error processing uploaded file");
+                _logger.LogError(ex, "Error processing uploaded file: {FileName}", file?.FileName);
                 return StatusCode(500, new
                 {
                     Success = false,
@@ -113,24 +113,6 @@ namespace ChecklistGenerator.Controllers
                     Error = ex.Message
                 });
             }
-        }
-
-        private string CacheExcelFile(byte[] excelBytes, string fileName)
-        {
-            var downloadId = Guid.NewGuid().ToString();
-            _excelCache[downloadId] = (excelBytes, fileName);
-            
-            // Clean up old entries
-            if (_excelCache.Count > MaxCacheSize)
-            {
-                var oldestKeys = _excelCache.Keys.Take(_excelCache.Count - MaxCacheSize).ToList();
-                foreach (var key in oldestKeys)
-                {
-                    _excelCache.Remove(key);
-                }
-            }
-            
-            return downloadId;
         }
 
         [HttpGet("sample")]
@@ -260,31 +242,6 @@ namespace ChecklistGenerator.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error saving survey results");
-                return StatusCode(500, new
-                {
-                    Success = false,
-                    Error = ex.Message
-                });
-            }
-        }
-
-        [HttpGet("downloadExcel/{downloadId}")]
-        public IActionResult DownloadExcel(string downloadId)
-        {
-            try
-            {
-                if (!_excelCache.TryGetValue(downloadId, out var excelData))
-                {
-                    return NotFound("Excel file not found or has expired");
-                }
-
-                _logger.LogInformation($"Downloading Excel file: {excelData.FileName}");
-                
-                return File(excelData.Data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", excelData.FileName);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error downloading Excel file");
                 return StatusCode(500, new
                 {
                     Success = false,

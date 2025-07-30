@@ -1,6 +1,6 @@
 # 📋 AI-Powered Checklist Generator
 
-A .NET 9 web application that converts DOCX documents to interactive SurveyJS forms using Google Gemini AI for intelligent document analysis and checklist generation.
+A .NET 9 web application that converts DOCX documents to interactive SurveyJS forms using Azure AI Foundry for intelligent document analysis and checklist generation.
 
 ![Build Status](https://github.com/stephenjtyrrell/checklist-generator/workflows/Build%20and%20Deploy%20Checklist%20Generator/badge.svg)
 ![Azure Deploy](https://github.com/stephenjtyrrell/checklist-generator/workflows/Codespace%20Auto-Deploy/badge.svg)
@@ -14,27 +14,36 @@ A .NET 9 web application that converts DOCX documents to interactive SurveyJS fo
 
 *Upload your DOCX files and convert them to interactive SurveyJS forms instantly using AI-powered analysis!*
 
-> **🤖 AI-Enhanced**: This application now uses Google Gemini AI to intelligently analyze document content, extract actionable items, and generate comprehensive checklists. No more regex patterns or static parsing - the AI understands context and creates meaningful, structured forms from any document type.
+> **🤖 AI-Enhanced**: This application now uses Azure AI Foundry to intelligently analyze document content, extract actionable items, and generate comprehensive checklists. No more regex patterns or static parsing - the AI understands context and creates meaningful, structured forms from any document type.
 
 ---
 
 ## ✨ AI-Powered Features
 
-### 🎯 Complete AI Integration (Recently Updated)
-All document processing has been migrated from static regex patterns to **Google Gemini AI** for intelligent analysis:
+### 🔥 NEW: Azure AI Foundry Integration with DeepSeek R1
+The application now supports **Azure AI Foundry** with the powerful **DeepSeek R1** model for enhanced document processing:
 
-- **🧠 Intelligent Document Analysis**: Gemini AI understands document structure and content context
+- **⚡ Direct PDF Processing**: Upload PDF files directly without conversion
+- **🧠 Advanced Reasoning**: DeepSeek R1's reasoning capabilities for better content understanding  
+- **🚀 Azure AI Foundry**: Enterprise-grade AI infrastructure with scalability and reliability
+- **📄 Multi-Format Support**: PDF, DOCX, and TXT files supported
+- **🔧 Intelligent Text Extraction**: Smart parsing of document structure and content
+- **🎯 Enhanced Checklist Generation**: More accurate and contextual checklist items
+
+### 🎯 Complete AI Integration (Recently Updated)
+All document processing has been migrated from static regex patterns to **AI-powered analysis** for intelligent processing:
+
+- **🧠 Intelligent Document Analysis**: Azure AI Foundry understands document structure and content context
 - **📝 Smart Checklist Generation**: Automatically identifies actionable items, requirements, and compliance points
 - **🎯 Context-Aware Processing**: AI preserves important regulatory and procedural information
 - **🔄 Enhanced SurveyJS Conversion**: Better form generation with appropriate question types
-- **📊 Structured Excel Output**: AI-generated Excel files with proper categorization and formatting
+- **📊 Direct DOCX Processing**: AI-powered document analysis without intermediate conversions
 
 ### 🔧 Technical AI Implementation
-- **GeminiService**: Centralized AI service using HTTP REST API integration
-- **ExcelProcessor**: AI-powered Excel content analysis and checklist extraction
+- **AzureAIFoundryService**: Centralized AI service using Azure AI Foundry API integration
 - **SurveyJSConverter**: Intelligent form generation with question type detection
-- **DocxToExcelConverter**: Enhanced document processing with AI-driven content understanding
-- **Error Handling**: Robust fallbacks and graceful degradation when AI is unavailable
+- **Direct Document Processing**: Enhanced DOCX processing with AI-driven content understanding
+- **Error Handling**: Robust error reporting with detailed error messages when AI processing fails
 
 ### 🚀 Benefits Over Previous System
 - **No More Regex**: Replaced complex pattern matching with intelligent content understanding
@@ -197,73 +206,61 @@ healthy
 
 ## 🤖 AI Configuration
 
-### Getting Started with Gemini AI
+### 🔥 Azure AI Foundry Setup (New!)
 
-1. **Get a Gemini API Key**:
-   - Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
-   - Create a new API key
-   - Copy the key
+1. **Create Azure AI Foundry Resource**:
+   - Visit [Azure AI Foundry](https://ai.azure.com/)
+   - Create a new AI Foundry project
+   - Deploy the DeepSeek R1 model
+   - Get your endpoint and API key
 
-2. **Configure the Application**:
+2. **Configure Azure AI Foundry**:
    
-   **For Local Development (Recommended - Secure):**
+   **For Local Development:**
    ```bash
-   # Use .NET User Secrets (keeps API key out of source control)
-   dotnet user-secrets init
-   dotnet user-secrets set "GeminiApiKey" "your_actual_api_key_here"
+   # Use .NET User Secrets (secure method)
+   dotnet user-secrets set "AzureAIFoundry:Endpoint" "https://your-foundry-endpoint.openai.azure.com"
+   dotnet user-secrets set "AzureAIFoundry:ApiKey" "your_azure_ai_foundry_api_key"
+   dotnet user-secrets set "AzureAIFoundry:DeploymentName" "deepseek-r1"
    ```
    
-   **Alternative for Local Development:**
-   ```bash
-   # Copy example file and update with your key
-   cp appsettings.example.json appsettings.local.json
-   # Edit appsettings.local.json and add your API key
-   # Note: appsettings.local.json is excluded from git
+   **Alternative Configuration:**
+   ```json
+   // In appsettings.json (for development only)
+   {
+     "AzureAIFoundry": {
+       "Endpoint": "https://your-foundry-endpoint.openai.azure.com",
+       "ApiKey": "your_azure_ai_foundry_api_key",
+       "DeploymentName": "deepseek-r1"
+     }
+   }
    ```
-   
-   **For Production/Azure:**
-   ```bash
-   # Set environment variable
-   export GeminiApiKey="your_actual_api_key_here"
-   
-   # Or in Azure Container Instances
-   az container create \
-     --environment-variables GeminiApiKey="your_actual_api_key_here"
-   ```
-
-   **⚠️ Security Note**: Never commit API keys to source control. The main `appsettings.json` should not contain sensitive values.
-
-3. **Verify Configuration**:
-   - Upload a test DOCX file
-   - Check logs for "processing with Gemini AI" messages
-   - Confirm AI-generated checklist items in response
 
 ### AI Processing Features
 
 **Core Services Enhanced with AI:**
-- **GeminiService.cs**: New centralized AI service handling all Gemini API interactions
-- **ExcelProcessor.cs**: Completely rewritten to use AI for content extraction and analysis
+- **AzureAIFoundryService.cs**: Centralized AI service handling all Azure AI Foundry API interactions
 - **SurveyJSConverter.cs**: Enhanced with AI-powered form generation and question type detection
-- **DocxToExcelConverter.cs**: Upgraded with AI-driven document understanding and structuring
+- **Direct DOCX Processing**: AI-driven document understanding without intermediate conversions
 
 **AI Capabilities:**
 - **Document Analysis**: Extracts meaningful content from complex documents with context understanding
 - **Checklist Generation**: Creates actionable items with proper categorization and priority
 - **SurveyJS Conversion**: Generates appropriate question types and logical form structures
 - **Content Interpretation**: Understands regulatory text, procedures, and compliance requirements
-- **Error Handling**: Graceful fallbacks when AI processing fails, with comprehensive logging
+- **Error Handling**: Robust error reporting and detailed logging when AI processing fails
 
 **Performance & Reliability:**
 - **Async Processing**: Non-blocking AI calls for better application responsiveness
-- **HTTP Client Pool**: Efficient connection management for Gemini API requests
+- **HTTP Client Pool**: Efficient connection management for Azure AI Foundry API requests
 - **Retry Logic**: Built-in error handling and retry mechanisms
-- **Fallback Systems**: Graceful degradation when AI services are unavailable
+- **Error Reporting**: Clear error messages when AI services are unavailable
 
 ---
 
 ## 🔄 Document Processing Workflow
 
-The application uses a sophisticated multi-stage processing workflow:
+The application uses a streamlined AI-powered processing workflow:
 
 ### Stage 1: DOCX Processing & Validation
 - **File Upload**: Secure handling with format validation (.docx only)
@@ -271,13 +268,13 @@ The application uses a sophisticated multi-stage processing workflow:
 - **Security**: In-memory processing without persistent storage
 - **Format Detection**: Automatic validation of DOCX structure
 
-### Stage 2: DOCX to Excel Conversion
-- **Modern Processing**: Direct processing of .docx files using DocumentFormat.OpenXml
-- **Structured Extraction**: Conversion to Excel format for better data analysis
-- **Content Preservation**: Maintains formatting, tables, and structure
-- **In-Memory Generation**: Creates Excel file for download without disk storage
+### Stage 2: AI-Powered Content Analysis
+- **Direct Processing**: Azure AI Foundry analyzes DOCX content directly
+- **Intelligent Extraction**: AI understands document structure and context
+- **Content Interpretation**: Identifies actionable items, requirements, and compliance points
+- **Structured Output**: Generates organized checklist items with proper categorization
 
-### Stage 3: Content Analysis & Extraction
+### Stage 3: Checklist Generation & Form Creation
 The application intelligently analyzes Excel data for:
 - **Question Detection**: Text patterns indicating questions (?, "please", interrogative words)
 - **Table Processing**: Structured data from tables with question/answer relationships
@@ -501,9 +498,6 @@ For automated Azure deployment, configure these secrets in GitHub repository set
 #### 2. `AZURE_CONTAINER_REGISTRY_NAME`
 Your Azure Container Registry name (e.g., "checklistgen")
 
-#### 3. `GEMINI_API_KEY`
-Your Google Gemini API key for AI-powered document processing
-
 ### Create Azure Resources
 
 ```bash
@@ -534,7 +528,6 @@ az container create \
   --name checklist-generator \
   --image YOUR_REGISTRY.azurecr.io/checklist-generator:latest \
   --ports 80 443 \
-  --environment-variables GeminiApiKey="YOUR_GEMINI_API_KEY" \
   --dns-name-label checklist-generator-stable
 ```
 
